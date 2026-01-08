@@ -1,4 +1,4 @@
-# 🌿 Moss Stats Plugin
+# 🌿 Stats Plugin
 
 ### Высокопроизводительный REST API для ванильной статистики Minecraft
 
