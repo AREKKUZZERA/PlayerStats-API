@@ -7,7 +7,6 @@
 ![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)
 ![Java Version](https://img.shields.io/badge/Java-21+-blue)
 ![PaperMC](https://img.shields.io/badge/Paper-1.21.x-white)
-![Build](https://img.shields.io/badge/Build-Maven-orange)
 [![Modrinth](https://img.shields.io/badge/Modrinth-Available-1bd96a?logo=modrinth&logoColor=white)](https://modrinth.com/plugin/playerstats-api)
 
 ---
