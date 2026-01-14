@@ -1,4 +1,4 @@
-# 🌿 Stats Plugin
+# 🌿 PlayerStats-API
 
 ### Высокопроизводительный REST API для ванильной статистики Minecraft
 
@@ -17,7 +17,7 @@
 
 ## 📘 Обзор
 
-**Moss Stats Plugin** — это быстрый, кэшируемый и автономный REST API для чтения всей ванильной статистики Minecraft, расположенной в:
+**PlayerStats-API** — это быстрый, кэшируемый и автономный REST API для чтения всей ванильной статистики Minecraft, расположенной в:
 
 ```
 <world>/stats/<uuid>.json
