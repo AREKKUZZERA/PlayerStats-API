@@ -1,4 +1,4 @@
-![PlayerStats-API](src/main/resources/playerstatsapi-logo.png)
+![PlayerStatsAPI](src/main/resources/playerstatsapi-logo.png)
 
 ### Высокопроизводительный REST API для ванильной статистики Minecraft
 
