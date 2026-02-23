@@ -1,11 +1,15 @@
 package com.plp.statsplugin;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import org.bukkit.OfflinePlayer;
 
 import java.io.File;
 import java.io.FileReader;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -134,5 +138,61 @@ public class StatsUtil {
         }
 
         return 0;
+    }
+
+    public static int getStatInSection(JsonObject root, String section, String statKey) {
+        if (root == null || section == null || statKey == null) return 0;
+
+        JsonObject statsRoot;
+        try {
+            statsRoot = root.getAsJsonObject("stats");
+        } catch (Exception e) {
+            return 0;
+        }
+
+        if (statsRoot == null) return 0;
+
+        try {
+            JsonObject sec = statsRoot.getAsJsonObject(section);
+            if (sec == null || !sec.has(statKey)) {
+                return 0;
+            }
+            return sec.get(statKey).getAsInt();
+        } catch (Exception ignored) {
+            return 0;
+        }
+    }
+
+    public static boolean sectionHasStatKey(JsonObject root, String section, String statKey) {
+        if (root == null || section == null || statKey == null) return false;
+
+        try {
+            JsonObject statsRoot = root.getAsJsonObject("stats");
+            if (statsRoot == null) return false;
+
+            JsonObject sec = statsRoot.getAsJsonObject(section);
+            return sec != null && sec.has(statKey);
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    public static Set<String> getAvailableStatSections(JsonObject root) {
+        Set<String> sections = new HashSet<>();
+        if (root == null) return sections;
+
+        try {
+            JsonObject statsRoot = root.getAsJsonObject("stats");
+            if (statsRoot == null) return sections;
+
+            for (Map.Entry<String, JsonElement> entry : statsRoot.entrySet()) {
+                if (entry.getValue() != null && entry.getValue().isJsonObject()) {
+                    sections.add(entry.getKey());
+                }
+            }
+        } catch (Exception ignored) {
+        }
+
+        return sections;
     }
 }

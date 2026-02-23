@@ -64,18 +64,20 @@ public class WebServer {
             return;
         }
 
-        JsonArray arr = new JsonArray();
-        int limit = resolveLimit(ex, settings.maxResponsePlayers());
+        int limit = resolvePlayersLimit(ex, settings.maxResponsePlayers());
+        int offset = resolveOffset(ex);
         Set<UUID> onlineSet = statsManager.getOnlinePlayerIdSet();
 
         List<UUID> uuids = new ArrayList<>(statsManager.getStatsCache().keySet());
         uuids.sort(Comparator.comparing(UUID::toString));
 
-        int count = 0;
-        for (UUID uuid : uuids) {
-            if (limit > 0 && count >= limit) {
-                break;
-            }
+        int total = uuids.size();
+        int from = Math.min(offset, total);
+        int to = limit > 0 ? Math.min(from + limit, total) : from;
+
+        JsonArray arr = new JsonArray();
+        for (int i = from; i < to; i++) {
+            UUID uuid = uuids.get(i);
 
             JsonObject o = new JsonObject();
             o.addProperty("uuid", uuid.toString());
@@ -91,10 +93,15 @@ public class WebServer {
             o.add("stats", statsManager.getFullStats(uuid));
 
             arr.add(o);
-            count++;
         }
 
-        send(ex, 200, gson.toJson(arr), "application/json; charset=UTF-8");
+        JsonObject out = new JsonObject();
+        out.addProperty("total", total);
+        out.addProperty("limit", limit);
+        out.addProperty("offset", offset);
+        out.add("players", arr);
+
+        send(ex, 200, gson.toJson(out), "application/json; charset=UTF-8");
     }
 
     // /moss/players/<uuid>
@@ -237,10 +244,10 @@ public class WebServer {
 
     // /moss/top/jumps
     private void handleTopJumps(HttpExchange ex) throws IOException {
-        handleTopInternal(ex, "minecraft:jump");
+        handleTopInternal(ex, "minecraft:jump", null);
     }
 
-    // /moss/top/<stat_key>
+    // /moss/top/<stat_key> и /moss/top/<section>/<stat_key>
     private void handleTopGeneric(HttpExchange ex) throws IOException {
         if (!ex.getRequestMethod().equalsIgnoreCase("GET")) {
             send(ex, 405, "Method Not Allowed", "text/plain");
@@ -253,22 +260,66 @@ public class WebServer {
             return;
         }
 
-        String encodedKey = parts[3];
+        String requestedSection = getQueryParam(ex, "section");
+        String encodedKey;
+
+        if (parts.length >= 5) {
+            requestedSection = URLDecoder.decode(parts[3], StandardCharsets.UTF_8).trim();
+            encodedKey = parts[4];
+        } else {
+            encodedKey = parts[3];
+            if (requestedSection != null) {
+                requestedSection = requestedSection.trim();
+            }
+        }
+
         String statKey = URLDecoder.decode(encodedKey, StandardCharsets.UTF_8).trim();
         if (!isValidStatKey(statKey)) {
             send(ex, 400, "Invalid stat key", "text/plain");
             return;
         }
 
-        handleTopInternal(ex, statKey);
+        if (requestedSection != null && !requestedSection.isBlank()) {
+            if (!isValidStatKey(requestedSection)) {
+                send(ex, 400, "Invalid section", "text/plain");
+                return;
+            }
+            handleTopInternal(ex, statKey, requestedSection);
+            return;
+        }
+
+        handleTopInternal(ex, statKey, null);
     }
 
-    private void handleTopInternal(HttpExchange ex, String statKey) throws IOException {
+    private void handleTopInternal(HttpExchange ex, String statKey, String section) throws IOException {
         List<Map.Entry<UUID, JsonObject>> players = new ArrayList<>(statsManager.getStatsCache().entrySet());
 
+        if (section != null) {
+            Set<String> availableSections = new HashSet<>();
+            for (Map.Entry<UUID, JsonObject> entry : players) {
+                availableSections.addAll(StatsUtil.getAvailableStatSections(entry.getValue()));
+            }
+            if (!availableSections.contains(section)) {
+                send(ex, 400, "Invalid section", "text/plain");
+                return;
+            }
+
+            boolean foundInSection = false;
+            for (Map.Entry<UUID, JsonObject> entry : players) {
+                if (StatsUtil.sectionHasStatKey(entry.getValue(), section, statKey)) {
+                    foundInSection = true;
+                    break;
+                }
+            }
+            if (!foundInSection) {
+                send(ex, 404, "Stat key not found in section", "text/plain");
+                return;
+            }
+        }
+
         players.sort((a, b) -> {
-            int av = StatsUtil.getAnyStat(a.getValue(), statKey);
-            int bv = StatsUtil.getAnyStat(b.getValue(), statKey);
+            int av = getTopValue(a.getValue(), statKey, section);
+            int bv = getTopValue(b.getValue(), statKey, section);
             return Integer.compare(bv, av);
         });
 
@@ -278,7 +329,7 @@ public class WebServer {
         int max = limit > 0 ? Math.min(limit, players.size()) : Math.min(settings.maxTopResults(), players.size());
         for (int i = 0; i < max; i++) {
             UUID uuid = players.get(i).getKey();
-            int value = StatsUtil.getAnyStat(players.get(i).getValue(), statKey);
+            int value = getTopValue(players.get(i).getValue(), statKey, section);
 
             JsonObject o = new JsonObject();
             o.addProperty("uuid", uuid.toString());
@@ -311,6 +362,64 @@ public class WebServer {
         if (executor != null) {
             executor.shutdownNow();
         }
+    }
+
+
+    private int getTopValue(JsonObject root, String statKey, String section) {
+        if (section == null) {
+            return StatsUtil.getAnyStat(root, statKey);
+        }
+        return StatsUtil.getStatInSection(root, section, statKey);
+    }
+
+    private int resolvePlayersLimit(HttpExchange exchange, int defaultLimit) {
+        String value = getQueryParam(exchange, "limit");
+        if (value == null) {
+            return defaultLimit;
+        }
+
+        try {
+            int parsed = Integer.parseInt(value);
+            if (parsed < 0) {
+                return 0;
+            }
+            if (defaultLimit > 0) {
+                return Math.min(parsed, defaultLimit);
+            }
+            return parsed;
+        } catch (NumberFormatException ignored) {
+            return defaultLimit;
+        }
+    }
+
+    private int resolveOffset(HttpExchange exchange) {
+        String value = getQueryParam(exchange, "offset");
+        if (value == null) {
+            return 0;
+        }
+
+        try {
+            int parsed = Integer.parseInt(value);
+            return Math.max(parsed, 0);
+        } catch (NumberFormatException ignored) {
+            return 0;
+        }
+    }
+
+    private String getQueryParam(HttpExchange exchange, String key) {
+        String query = exchange.getRequestURI().getQuery();
+        if (query == null || query.isBlank()) {
+            return null;
+        }
+
+        for (String part : query.split("&")) {
+            String[] kv = part.split("=", 2);
+            if (kv.length == 2 && kv[0].equalsIgnoreCase(key)) {
+                return URLDecoder.decode(kv[1], StandardCharsets.UTF_8);
+            }
+        }
+
+        return null;
     }
 
     private int resolveLimit(HttpExchange exchange, int defaultLimit) {
