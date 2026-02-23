@@ -1,0 +1,13 @@
+update-interval-seconds: 60
+stats-world: world
+stats-folder: ""
+web-port: 8080
+web:
+  enabled: true
+  port: 8080
+  bind-address: "0.0.0.0"
+  max-response-players: 0
+  max-top-results: 20
+  cors:
+    enabled: false
+    allow-origin: "*"

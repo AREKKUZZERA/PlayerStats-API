@@ -1,0 +1,5 @@
+com\plp\statsplugin\WebServer.class
+com\plp\statsplugin\StatsPlugin.class
+com\plp\statsplugin\StatsManager.class
+com\plp\statsplugin\WebServer$Settings.class
+com\plp\statsplugin\StatsUtil.class
