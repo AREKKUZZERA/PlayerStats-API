@@ -164,13 +164,10 @@ src/main/java/com/plp/statsplugin/
 * Paper 1.21+
 * Maven 3.8+
 
-````
 
 ---
 
-# 🇬🇧 ENGLISH VERSION
 
-```markdown
 ![PlayerStatsAPI](src/main/resources/playerstatsapi-logo.png)
 
 ### High-Performance REST API for Vanilla Minecraft Statistics
@@ -188,11 +185,10 @@ src/main/java/com/plp/statsplugin/
 
 **PlayerStats-API** is a fast, cache-based and fully standalone REST API for reading vanilla Minecraft statistics from:
 
-````
+
 
 <world>/stats/<uuid>.json
 
-```
 
 No database. No external dependencies. Pure vanilla stats.
 
