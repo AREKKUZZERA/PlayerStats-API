@@ -163,7 +163,8 @@ src/main/java/com/plp/statsplugin/
 * Paper 1.21+
 * Maven 3.8+
 
-```
+
+---
 
 ![PlayerStatsAPI](src/main/resources/playerstatsapi-logo.png)
 
