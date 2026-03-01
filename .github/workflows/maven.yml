@@ -21,3 +21,11 @@ jobs:
           java-version: '21'
           cache: maven
       - run: mvn -B clean package
+
+      - name: Upload plugin jar
+        uses: actions/upload-artifact@v4
+        with:
+          name: statsplugin
+          path: |
+            target/*.jar
+            !target/original-*.jar
