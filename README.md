@@ -1,5 +1,173 @@
 ![PlayerStatsAPI](src/main/resources/playerstatsapi-logo.png)
 
+### High-Performance REST API for Vanilla Minecraft Statistics
+
+**Paper 1.21.x (1.21–1.21.11) · Java 21**
+
+![Java Version](https://img.shields.io/badge/Java-21+-blue)
+![PaperMC](https://img.shields.io/badge/Paper-1.21.x-white)
+![Release](https://img.shields.io/github/v/release/AREKKUZZERA/PlayerStats-API?style=flat-square&logo=github)
+[![Modrinth](https://img.shields.io/badge/Modrinth-Available-1bd96a?logo=modrinth&logoColor=white)](https://modrinth.com/plugin/playerstats-api)
+
+---
+
+## 📘 Overview
+
+**PlayerStats-API** is a fast, cache-based and fully standalone REST API for reading vanilla Minecraft statistics from:
+
+
+
+<world>/stats/<uuid>.json
+
+
+No database. No external dependencies. Pure vanilla stats.
+
+---
+
+## 🔥 Key Features
+
+### ✔ Full Access to Vanilla Statistics
+
+Supports all statistic sections:
+
+- `minecraft:custom`
+- `minecraft:mined`
+- `minecraft:crafted`
+- `minecraft:used`
+- `minecraft:broken`
+- `minecraft:picked_up`
+- `minecraft:dropped`
+- `minecraft:killed`
+- `minecraft:killed_by`
+- and any other section present in the stats file
+
+---
+
+### ✔ Pagination Support (NEW)
+
+`/moss/players` and `/moss/top` support:
+
+```
+
+?limit=50&offset=100
+
+````
+
+Response metadata:
+
+```json
+{
+  "total": 5321,
+  "limit": 50,
+  "offset": 100,
+  "players": [...]
+}
+````
+
+Safe handling:
+
+* Negative values → clamped to 0
+* Oversized limits → clamped to config max
+* Stable deterministic sorting
+
+Perfect for dashboards and web applications.
+
+---
+
+### ✔ Explicit Section Selection for Leaderboards (NEW)
+
+Fixes ambiguous stat keys like `minecraft:stone`.
+
+You can now explicitly specify a section:
+
+#### Query parameter
+
+```
+GET /moss/top/minecraft:stone?section=minecraft:mined
+GET /moss/top/minecraft:stone?section=minecraft:used
+GET /moss/top/minecraft:pig?section=minecraft:killed
+```
+
+#### Path variant
+
+```
+GET /moss/top/minecraft:mined/minecraft:stone
+GET /moss/top/minecraft:killed/minecraft:pig
+```
+
+Behavior:
+
+* If section provided → only that section is searched
+* If not provided → legacy fallback behavior preserved
+* 400 → invalid section
+* 404 → stat key not found in that section
+
+---
+
+### ✔ In-Memory Caching
+
+All data stored in `ConcurrentHashMap`
+→ instant API responses
+
+---
+
+### ✔ Offline Player Preloading
+
+On server startup, all stats are loaded from:
+
+```
+<world>/stats/
+```
+
+---
+
+### ✔ Automatic Online Player Updates
+
+Online stats refresh every `update-interval-seconds`.
+
+---
+
+## 🌐 REST API
+
+### Get Players (with pagination)
+
+```
+GET /moss/players?limit=50&offset=0
+```
+
+### Universal Leaderboards
+
+```
+GET /moss/top/<stat_key>
+GET /moss/top/<stat_key>?section=<section>
+GET /moss/top/<section>/<stat_key>
+```
+
+---
+
+## 🏗 Architecture
+
+```
+src/main/java/com/plp/statsplugin/
+ ├── StatsPlugin.java
+ ├── StatsManager.java
+ ├── StatsUtil.java
+ └── WebServer.java
+```
+
+---
+
+## ⚠ Requirements
+
+* Java 21
+* Paper 1.21+
+* Maven 3.8+
+
+
+---
+
+![PlayerStatsAPI](src/main/resources/playerstatsapi-logo.png)
+
 ### Высокопроизводительный REST API для ванильной статистики Minecraft
 
 **Paper 1.21.x (1.21–1.21.11) · Java 21**
@@ -11,220 +179,137 @@
 
 ---
 
-**Совместимость:** Paper 1.21.x (1.21–1.21.11)  
-**Java:** 21  
-**API:** только Bukkit/Paper (без NMS/CraftBukkit)
-
 ## 📘 Обзор
 
-**PlayerStats-API** - это быстрый, кэшируемый и автономный REST API для чтения всей ванильной статистики Minecraft, расположенной в:
+**PlayerStats-API** — быстрый, кэшируемый и автономный REST API для чтения всей ванильной статистики Minecraft из:
 
 ```
+
 <world>/stats/<uuid>.json
+
 ```
 
-Плагин:
-
-* Загружает **статистику оффлайн игроков** при запуске сервера
-* Обновляет **онлайн-статистику** по расписанию
-* Предоставляет удобный **HTTP REST API**
-* Поддерживает поиск по **имени и UUID**
-* Считает **агрегированные totals**
-* Генерирует **топы по любому stat_key**
-* Автоматически определяет нужную stats-директорию
-* Хранит данные в эффективном `ConcurrentHashMap`
-
-Без базы данных. Без внешних зависимостей. Чистая ванильная статистика.
+Без базы данных. Без внешних зависимостей. Только чистая ванильная статистика.
 
 ---
 
 ## 🔥 Ключевые возможности
 
 ### ✔ Полный доступ к статистике Minecraft
+Поддерживаются все секции статистики:
+- `minecraft:custom`
+- `minecraft:mined`
+- `minecraft:crafted`
+- `minecraft:used`
+- `minecraft:broken`
+- `minecraft:picked_up`
+- `minecraft:dropped`
+- `minecraft:killed`
+- `minecraft:killed_by`
+- и любые другие, присутствующие в stats-файле
 
-Поддерживаются все разделы статистики:
+---
 
-* `minecraft:custom`
-* `minecraft:mined`
-* `minecraft:crafted`
-* `minecraft:used`
-* `minecraft:broken`
-* `minecraft:picked_up`
-* `minecraft:dropped`
+### ✔ Пагинация (новое)
 
-Например:
+`/moss/players` и `/moss/top` поддерживают:
 
-* прыжки, смерти, время игры
-* убийства игроков и мобов
-* дистанции ходьбы/плавания/полёта
-* добытые блоки
-* созданные предметы
+```
 
-### ✔ Кэширование статистики в памяти
+?limit=50&offset=100
 
-Все данные хранятся в Map → моментальные ответы API.
+````
+
+Ответ содержит метаданные:
+
+```json
+{
+  "total": 5321,
+  "limit": 50,
+  "offset": 100,
+  "players": [...]
+}
+````
+
+Безопасная обработка:
+
+* отрицательные значения → 0
+* превышение лимита → ограничение по конфигу
+* стабильная сортировка
+
+Идеально для веб-панелей и дашбордов.
+
+---
+
+### ✔ Явное указание секции для топов (новое)
+
+Решена проблема неоднозначных ключей (`minecraft:stone` и др.)
+
+Теперь можно явно указать секцию:
+
+#### Query-параметр
+
+```
+GET /moss/top/minecraft:stone?section=minecraft:mined
+GET /moss/top/minecraft:stone?section=minecraft:used
+GET /moss/top/minecraft:pig?section=minecraft:killed
+```
+
+#### Вариант с путём
+
+```
+GET /moss/top/minecraft:mined/minecraft:stone
+GET /moss/top/minecraft:killed/minecraft:pig
+```
+
+Поведение:
+
+* Если `section` указан → поиск только в этой секции
+* Если не указан → старое поведение сохраняется
+* 400 → неверная секция
+* 404 → stat_key отсутствует в указанной секции
+
+---
+
+### ✔ Кэширование в памяти
+
+Все данные хранятся в `ConcurrentHashMap`
+→ мгновенные ответы API
+
+---
 
 ### ✔ Предзагрузка оффлайн игроков
 
-При старте сервера загружается весь каталог:
+При запуске загружается весь каталог:
 
 ```
 <world>/stats/
 ```
 
+---
+
 ### ✔ Автообновление онлайн игроков
 
 Обновление выполняется каждые `update-interval-seconds`.
-
-### ✔ Чистый REST API
-
-Отлично подходит для интеграции с сайтами, панелями мониторинга, ботами и аналитикой.
-
-### ✔ Универсальные топ-листы
-
-Можно сортировать по любому ключу статистики Minecraft.
-
----
-
-# 📦 Установка
-
-### 1. Сборка проекта
-
-```bash
-mvn clean package
-```
-
-### 2. Поместить JAR в каталог:
-
-```
-/server/plugins/
-```
-
-### 3. Запустить Paper
-
-```bash
-java -jar paper.jar
-```
-
-REST-сервер стартует автоматически.
-
----
-
-# 🔧 Конфигурация (`config.yml`)
-
-```yaml
-# Интервал обновления статистики онлайн игроков (сек)
-update-interval-seconds: 60
-
-# Порт HTTP-сервера
-web-port: 8080
-
-# Предзагружать ли статистику оффлайн игроков
-preload-offline-stats: true
-
-# Лимит записей в топах
-top-limit: 20
-
-# Принудительное имя мира ("" = автоопределение)
-stats-world: ""
-
-# Уровень логирования
-log-level: INFO
-```
 
 ---
 
 # 🌐 REST API
 
-## 🔹 Получить всех игроков
+## Получить всех игроков (с пагинацией)
 
 ```
-GET /moss/players
-```
-
-**Пример:**
-
-```json
-[
-  {
-    "uuid": "ccb86b92-4616-3600-8507-80e0f431a572",
-    "name": "Arekku",
-    "online": false,
-    "stats": { ... }
-  }
-]
+GET /moss/players?limit=50&offset=0
 ```
 
 ---
 
-## 🔹 Получить игрока по UUID
-
-```
-GET /moss/players/<uuid>
-```
-
----
-
-## 🔹 Получить игрока по имени
-
-```
-GET /moss/player/<name>
-```
-
----
-
-## 🔹 Список онлайн игроков
-
-```
-GET /moss/online
-```
-
----
-
-## 🔹 Сводная статистика сервера
-
-```
-GET /moss/summary
-```
-
-**Ответ:**
-
-```json
-{
-  "players": 51,
-  "totals": {
-    "total_jumps": 1524421,
-    "total_deaths": 922,
-    "total_playtime": 18399122,
-    "blocks_mined": 55324421,
-    "items_crafted": 233525
-  }
-}
-```
-
----
-
-## 🔹 Топы статистики
-
-### Фиксированный топ:
-
-```
-GET /moss/top/jumps
-```
-
-### Универсальный топ:
+## Универсальные топы
 
 ```
 GET /moss/top/<stat_key>
-```
-
-**Примеры:**
-
-```
-/moss/top/minecraft:jump
-/moss/top/minecraft:stone
-/moss/top/minecraft:player_kills
-/moss/top/minecraft:walk_one_cm
+GET /moss/top/<stat_key>?section=<section>
+GET /moss/top/<section>/<stat_key>
 ```
 
 ---
@@ -233,10 +318,10 @@ GET /moss/top/<stat_key>
 
 ```
 src/main/java/com/plp/statsplugin/
- ├── StatsPlugin.java     # Точка входа плагина
- ├── StatsManager.java    # Кэширование, обновление статистики
- ├── StatsUtil.java       # Чтение и парсинг vanilla stats
- └── WebServer.java       # Реализация REST API
+ ├── StatsPlugin.java
+ ├── StatsManager.java
+ ├── StatsUtil.java
+ └── WebServer.java
 ```
 
 ---
@@ -247,37 +332,6 @@ src/main/java/com/plp/statsplugin/
 * Paper 1.21+
 * Maven 3.8+
 
----
-
-# 📈 Сценарии использования
-
-### Панели мониторинга и веб-дашборды
-
-Идеально для Next.js / React-приложений.
-
-### Аналитика поведения игроков
-
-Подходит для:
-
-* метрик вовлечённости
-* выявления популярных предметов/блоков
-* анализа игровых паттернов
-
-### Интеграция с ботами
-
-Discord/Telegram-бот может показывать:
-
-* время игры
-* K/D
-* активность
-* топ-листы
-
-### Автоматизация на сервере
-
-Можно использовать для:
-
-* ранговых систем
-* наград за активность
-* игровых событий
 
 ---
+
