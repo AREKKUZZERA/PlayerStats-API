@@ -10,12 +10,10 @@
     <name>StatsPlugin</name>
 
     <properties>
-        <!-- Paper 1.21.x строго требует Java 21 -->
         <maven.compiler.release>21</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
-        <!-- API-версия Paper -->
         <paper.api.version>1.21-R0.1-SNAPSHOT</paper.api.version>
     </properties>
 
@@ -37,7 +35,6 @@
 
     <build>
         <plugins>
-            <!-- Компилятор для Java 21 -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
@@ -47,7 +44,6 @@
                 </configuration>
             </plugin>
 
-            <!-- Shade для сборки fat-jar -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>

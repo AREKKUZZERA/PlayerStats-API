@@ -4,6 +4,10 @@
 target/
 dependency-reduced-pom.xml
 
+# Maven wrapper (если используешь wrapper, НЕ игнорируй .mvn/wrapper)
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+
 # ==============================
 # Compiled class files
 # ==============================
@@ -25,7 +29,22 @@ replay_pid*
 # ==============================
 .idea/
 *.iml
+out/               # IntelliJ output folder sometimes
 .vscode/
+*.code-workspace   # VS Code workspace files
+
+# Eclipse
+.project
+.classpath
+.settings/
+
+# NetBeans
+nbproject/
+build/
+nbbuild/
+dist/
+nbdist/
+.nb-gradle/
 
 # ==============================
 # OS files
@@ -38,3 +57,6 @@ Thumbs.db
 # ==============================
 .mtj.tmp/
 *.ctxt
+*.tmp
+*.swp
+*~
