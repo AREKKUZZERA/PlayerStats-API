@@ -9,181 +9,161 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
-import java.util.List;
-import java.util.ArrayList;
-import java.util.Set;
-import java.util.HashSet;
 
 public class StatsManager implements Listener {
 
     private final StatsPlugin plugin;
+    private final Logger log;
 
-    // Основной кэш статистики
-    private final Map<UUID, JsonObject> statsCache = new ConcurrentHashMap<>();
+    // uuid -> полный JSON со статистикой
+    private final ConcurrentMap<UUID, JsonObject> statsCache = new ConcurrentHashMap<>();
+    // Двусторонний маппинг имя <-> uuid
     private final ConcurrentMap<String, UUID> nameToUuid = new ConcurrentHashMap<>();
     private final ConcurrentMap<UUID, String> uuidToName = new ConcurrentHashMap<>();
-    private final ConcurrentMap<UUID, Boolean> onlinePlayers = new ConcurrentHashMap<>();
+    // uuid онлайн-игроков
+    private final ConcurrentMap<UUID, Boolean> onlineSet = new ConcurrentHashMap<>();
 
     public StatsManager(StatsPlugin plugin) {
         this.plugin = plugin;
+        this.log = plugin.getLogger();
     }
 
-    // ============================
-    // ASYNC ПРЕДЗАГРУЗКА ВСЕХ СТАТИСТИК
-    // ============================
-    public void preloadAllStatsAsync() {
-        List<UUID> uuids = new ArrayList<>();
-        for (OfflinePlayer player : Bukkit.getOfflinePlayers()) {
-            if (player == null || player.getUniqueId() == null) {
-                continue;
-            }
-            uuids.add(player.getUniqueId());
-            cacheName(player.getUniqueId(), player.getName());
-        }
+    // -------------------------------------------------------------------------
+    // Предзагрузка при старте
+    // -------------------------------------------------------------------------
 
-        if (uuids.isEmpty()) {
-            plugin.getLogger().info("[StatsPlugin] Нет оффлайн игроков для загрузки.");
+    public void preloadAllStatsAsync() {
+        OfflinePlayer[] offline = Bukkit.getOfflinePlayers();
+        if (offline.length == 0) {
+            log.info("Нет сохранённых игроков для предзагрузки.");
             return;
         }
 
-        plugin.getLogger().info("[StatsPlugin] Загружаю статистику оффлайн игроков: " + uuids.size());
-        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> loadStatsForUuids(uuids, "оффлайн"));
+        List<UUID> uuids = new ArrayList<>(offline.length);
+        for (OfflinePlayer p : offline) {
+            if (p == null || p.getUniqueId() == null) continue;
+            uuids.add(p.getUniqueId());
+            cacheName(p.getUniqueId(), p.getName());
+        }
+
+        log.info("Предзагрузка статистики: " + uuids.size() + " игроков...");
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> loadStats(uuids, "предзагрузка"));
     }
 
-    // ============================
-    // Чтение статистики
-    // ============================
-    public Integer getStat(UUID uuid, String statKey) {
-        JsonObject obj = statsCache.get(uuid);
-        if (obj == null) return 0;
+    // -------------------------------------------------------------------------
+    // Периодическое обновление онлайн-игроков
+    // -------------------------------------------------------------------------
 
-        return StatsUtil.getAnyStat(obj, statKey);
+    public void updateAllOnlinePlayers() {
+        Collection<? extends Player> online = Bukkit.getOnlinePlayers();
+        if (online.isEmpty()) return;
+
+        // Обновляем onlineSet: добавляем актуальных, удаляем вышедших
+        Set<UUID> current = online.stream().map(Player::getUniqueId).collect(Collectors.toSet());
+        onlineSet.keySet().retainAll(current);
+        for (Player p : online) {
+            onlineSet.put(p.getUniqueId(), Boolean.TRUE);
+            cacheName(p.getUniqueId(), p.getName());
+        }
+
+        List<UUID> uuids = new ArrayList<>(current);
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> loadStats(uuids, "обновление онлайн"));
+    }
+
+    // -------------------------------------------------------------------------
+    // События
+    // -------------------------------------------------------------------------
+
+    @EventHandler
+    public void onJoin(PlayerJoinEvent e) {
+        Player p = e.getPlayer();
+        onlineSet.put(p.getUniqueId(), Boolean.TRUE);
+        cacheName(p.getUniqueId(), p.getName());
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> reloadOne(p.getUniqueId()));
+    }
+
+    @EventHandler
+    public void onQuit(PlayerQuitEvent e) {
+        Player p = e.getPlayer();
+        onlineSet.remove(p.getUniqueId());
+        // Обновляем кэш последний раз после выхода
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> reloadOne(p.getUniqueId()));
+    }
+
+    // -------------------------------------------------------------------------
+    // Публичное API
+    // -------------------------------------------------------------------------
+
+    public int getStat(UUID uuid, String statKey) {
+        JsonObject obj = statsCache.get(uuid);
+        return obj == null ? 0 : StatsUtil.getAnyStat(obj, statKey);
     }
 
     public JsonObject getFullStats(UUID uuid) {
         return statsCache.getOrDefault(uuid, new JsonObject());
     }
 
-    // ============================
-    // Ручное обновление одного игрока
-    // ============================
-    public void updatePlayer(Player p) {
-        if (p == null || p.getUniqueId() == null) {
-            return;
-        }
-        updatePlayerAsync(p.getUniqueId());
-    }
-
-    // ============================
-    // Автообновление всех ONLINE игроков
-    // ============================
-    public void updateAllOnlinePlayers() {
-        List<Player> onlineSnapshot = new ArrayList<>(Bukkit.getOnlinePlayers());
-        onlinePlayers.clear();
-        for (Player player : onlineSnapshot) {
-            onlinePlayers.put(player.getUniqueId(), Boolean.TRUE);
-            cacheName(player.getUniqueId(), player.getName());
-        }
-
-        List<UUID> uuids = onlineSnapshot.stream()
-                .map(Player::getUniqueId)
-                .collect(Collectors.toList());
-
-        if (!uuids.isEmpty()) {
-            Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> loadStatsForUuids(uuids, "онлайн"));
-        }
-    }
-
-    // ============================
-    // EVENTS
-    // ============================
-    @EventHandler
-    public void onJoin(PlayerJoinEvent e) {
-        Player player = e.getPlayer();
-        onlinePlayers.put(player.getUniqueId(), Boolean.TRUE);
-        cacheName(player.getUniqueId(), player.getName());
-        updatePlayer(player);
-    }
-
-    @EventHandler
-    public void onQuit(PlayerQuitEvent e) {
-        Player player = e.getPlayer();
-        onlinePlayers.remove(player.getUniqueId());
-        cacheName(player.getUniqueId(), player.getName());
-        updatePlayer(player);
-    }
-
-    // ============================
-    // API UTIL METHODS
-    // ============================
-
     public Map<UUID, JsonObject> getStatsCache() {
         return statsCache;
     }
 
     public UUID getUUID(String name) {
-        if (name == null) {
-            return null;
-        }
+        if (name == null) return null;
         return nameToUuid.get(name.toLowerCase());
     }
 
     public String getPlayerName(UUID uuid) {
-        if (uuid == null) {
-            return "Unknown";
-        }
-        return uuidToName.getOrDefault(uuid, "Unknown");
+        return uuid == null ? "Unknown" : uuidToName.getOrDefault(uuid, "Unknown");
     }
 
     public List<UUID> getOnlinePlayerIds() {
-        return new ArrayList<>(onlinePlayers.keySet());
+        return new ArrayList<>(onlineSet.keySet());
     }
 
     public Set<UUID> getOnlinePlayerIdSet() {
-        return new HashSet<>(onlinePlayers.keySet());
+        return Collections.unmodifiableSet(onlineSet.keySet());
     }
 
-    private void updatePlayerAsync(UUID uuid) {
-        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
-            JsonObject stats = StatsUtil.readStats(uuid);
-            if (stats != null) {
-                statsCache.put(uuid, stats);
-            } else {
-                statsCache.remove(uuid);
-            }
-        });
+    // -------------------------------------------------------------------------
+    // Внутренние методы
+    // -------------------------------------------------------------------------
+
+    private void reloadOne(UUID uuid) {
+        JsonObject stats = StatsUtil.readStats(uuid);
+        if (stats != null) {
+            statsCache.put(uuid, stats);
+        } else {
+            statsCache.remove(uuid);
+        }
     }
 
-    private void loadStatsForUuids(List<UUID> uuids, String label) {
+    private void loadStats(List<UUID> uuids, String label) {
         long start = System.currentTimeMillis();
-        AtomicInteger loaded = new AtomicInteger();
+        int loaded = 0;
 
         for (UUID uuid : uuids) {
             JsonObject stats = StatsUtil.readStats(uuid);
             if (stats != null) {
                 statsCache.put(uuid, stats);
-                loaded.incrementAndGet();
+                loaded++;
             } else {
                 statsCache.remove(uuid);
             }
         }
 
         long elapsed = System.currentTimeMillis() - start;
-        plugin.getLogger().info("[StatsPlugin] Загружено " + loaded.get() + " статистик (" + label + ") за " + elapsed + " ms");
+        log.info("[Sync] " + label + " — загружено " + loaded + "/" + uuids.size()
+                + " записей за " + elapsed + " мс.");
     }
 
     private void cacheName(UUID uuid, String name) {
-        if (uuid == null || name == null || name.isBlank()) {
-            return;
-        }
-        String lower = name.toLowerCase();
+        if (uuid == null || name == null || name.isBlank()) return;
         uuidToName.put(uuid, name);
-        nameToUuid.put(lower, uuid);
+        nameToUuid.put(name.toLowerCase(), uuid);
     }
 }
