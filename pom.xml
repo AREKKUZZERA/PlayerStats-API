@@ -5,23 +5,21 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.plp</groupId>
-    <artifactId>statsplugin</artifactId>
+    <artifactId>PlayerStats-API</artifactId>
     <version>2.0</version>
     <name>PlayerStatsAPI</name>
 
     <properties>
-        <maven.compiler.release>25</maven.compiler.release>
+        <maven.compiler.release>21</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
         <!--
             Целевая версия: MC 26.1 (Tiny Takeover, март 2026)
             Paper API под 26.1 ещё не опубликован в maven-репозитории.
-            Когда он появится — замени значение ниже на 26.1-R0.1-SNAPSHOT
-            (или на аналогичный формат, который выберет PaperMC).
             До тех пор используется последняя стабильная Paper API (1.21.11).
         -->
-        <paper.api.version>1.21.11-R0.1-SNAPSHOT</paper.api.version>
+        <paper.api.version>1.21-R0.1-SNAPSHOT</paper.api.version>
     </properties>
 
     <repositories>
@@ -47,7 +45,7 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.13.0</version>
                 <configuration>
-                    <release>25</release>
+                    <release>21</release>
                 </configuration>
             </plugin>
 
