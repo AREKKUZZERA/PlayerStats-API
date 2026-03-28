@@ -1,8 +1,6 @@
 package com.plp.statsplugin;
 
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -11,8 +9,9 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
-
-import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
 
 @DisplayName("RateLimiter")
 class RateLimiterTest {
@@ -53,7 +52,7 @@ class RateLimiterTest {
             RateLimiter rl = new RateLimiter(1, 60_000, fixedClock(0));
             assertTrue(rl.tryAcquire("10.0.0.1"));
             assertFalse(rl.tryAcquire("10.0.0.1"), "second from same IP denied");
-            assertTrue(rl.tryAcquire("10.0.0.2"),  "first from other IP still allowed");
+            assertTrue(rl.tryAcquire("10.0.0.2"), "first from other IP still allowed");
         }
 
         @Test
@@ -103,7 +102,7 @@ class RateLimiterTest {
         @DisplayName("remainingRequests() decrements correctly")
         void remainingDecrement() {
             RateLimiter rl = new RateLimiter(5, 60_000, fixedClock(0));
-            assertEquals(5, rl.remainingRequests("ip"));   // fresh bucket
+            assertEquals(5, rl.remainingRequests("ip")); // fresh bucket
             rl.tryAcquire("ip");
             assertEquals(4, rl.remainingRequests("ip"));
             rl.tryAcquire("ip");
@@ -136,7 +135,7 @@ class RateLimiterTest {
         @DisplayName("getMaxRequests() and getWindowMillis() return configured values")
         void configAccessors() {
             RateLimiter rl = new RateLimiter(42, 30_000);
-            assertEquals(42,     rl.getMaxRequests());
+            assertEquals(42, rl.getMaxRequests());
             assertEquals(30_000, rl.getWindowMillis());
         }
     }
@@ -169,13 +168,13 @@ class RateLimiterTest {
         @Test
         @DisplayName("exactly maxRequests allowed across many concurrent threads")
         void concurrentAllowed() throws InterruptedException {
-            int limit  = 10;
+            int limit = 10;
             int threads = 50;
             RateLimiter rl = new RateLimiter(limit, 60_000, fixedClock(0));
 
             AtomicInteger allowed = new AtomicInteger();
-            CountDownLatch start  = new CountDownLatch(1);
-            CountDownLatch done   = new CountDownLatch(threads);
+            CountDownLatch start = new CountDownLatch(1);
+            CountDownLatch done = new CountDownLatch(threads);
 
             ExecutorService pool = Executors.newFixedThreadPool(threads);
             for (int i = 0; i < threads; i++) {
@@ -195,8 +194,7 @@ class RateLimiterTest {
             done.await();
             pool.shutdownNow();
 
-            assertEquals(limit, allowed.get(),
-                    "exactly maxRequests should be allowed, got " + allowed.get());
+            assertEquals(limit, allowed.get(), "exactly maxRequests should be allowed, got " + allowed.get());
         }
     }
 }

@@ -37,9 +37,9 @@ public final class RateLimiter {
     RateLimiter(int maxRequests, long windowMillis, Clock clock) {
         if (maxRequests < 1) throw new IllegalArgumentException("maxRequests must be ≥ 1");
         if (windowMillis < 1) throw new IllegalArgumentException("windowMillis must be ≥ 1");
-        this.maxRequests  = maxRequests;
+        this.maxRequests = maxRequests;
         this.windowMillis = windowMillis;
-        this.clock        = clock;
+        this.clock = clock;
     }
 
     /**
@@ -87,8 +87,13 @@ public final class RateLimiter {
         return (b == null) ? clock.millis() + windowMillis : b.windowEnd;
     }
 
-    public int getMaxRequests()  { return maxRequests; }
-    public long getWindowMillis() { return windowMillis; }
+    public int getMaxRequests() {
+        return maxRequests;
+    }
+
+    public long getWindowMillis() {
+        return windowMillis;
+    }
 
     // -------------------------------------------------------------------------
 
