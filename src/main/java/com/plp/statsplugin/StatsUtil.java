@@ -5,10 +5,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import java.io.File;
 import java.io.FileReader;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -16,7 +13,7 @@ public final class StatsUtil {
 
     private static final Gson GSON = new Gson();
 
-    /** Список известных секций статистики Minecraft */
+    /** Все секции статистики Minecraft. */
     private static final String[] STAT_SECTIONS = {
         "minecraft:custom",
         "minecraft:mined",
@@ -43,7 +40,7 @@ public final class StatsUtil {
     }
 
     // -------------------------------------------------------------------------
-    // Чтение JSON файла статистики
+    // Чтение JSON-файла статистики
     // -------------------------------------------------------------------------
 
     public static JsonObject readStats(UUID uuid) {
@@ -59,7 +56,8 @@ public final class StatsUtil {
         if (!file.exists()) return null;
 
         try (FileReader reader = new FileReader(file)) {
-            return GSON.fromJson(reader, JsonObject.class);
+            JsonObject result = GSON.fromJson(reader, JsonObject.class);
+            return (result != null) ? result : new JsonObject();
         } catch (Exception e) {
             log(Level.WARNING, "Ошибка чтения " + file.getName() + ": " + e.getMessage());
             return null;
@@ -72,8 +70,10 @@ public final class StatsUtil {
 
     /**
      * Ищет ключ во всех известных секциях статистики.
+     * Возвращает первое ненулевое значение.
      */
     public static int getAnyStat(JsonObject root, String statKey) {
+        if (statKey == null || statKey.isBlank()) return 0;
         JsonObject statsRoot = getStatsRoot(root);
         if (statsRoot == null) return 0;
 
@@ -92,6 +92,26 @@ public final class StatsUtil {
         JsonObject statsRoot = getStatsRoot(root);
         if (statsRoot == null) return 0;
         return readIntFromSection(statsRoot, section, statKey);
+    }
+
+    /**
+     * Суммирует все значения в указанной секции (например, суммарно добытых блоков).
+     */
+    public static int totalSection(JsonObject root, String section) {
+        if (section == null) return 0;
+        JsonObject statsRoot = getStatsRoot(root);
+        if (statsRoot == null) return 0;
+        JsonObject sec = getSection(statsRoot, section);
+        if (sec == null) return 0;
+
+        long total = 0;
+        for (Map.Entry<String, JsonElement> entry : sec.entrySet()) {
+            try {
+                total += entry.getValue().getAsLong();
+            } catch (Exception ignored) {}
+        }
+        // Обрезаем до int: теоретически может переполниться, но на практике нет
+        return (int) Math.min(total, Integer.MAX_VALUE);
     }
 
     /**

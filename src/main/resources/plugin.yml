@@ -3,7 +3,46 @@ version: ${project.version}
 main: com.plp.statsplugin.StatsPlugin
 api-version: '1.21'
 description: Vanilla statistics web API and command helper.
+
 commands:
   stat:
-    description: Show vanilla stat for a player
-    usage: /stat <player> <minecraft:stat_key>
+    description: Показать конкретную стату игрока по ключу
+    usage: /stat <игрок> <minecraft:ключ>
+    permission: playerstatsapi.stat
+
+  stats:
+    description: Показать сводку статистики игрока (смерти, игровое время, прыжки и т.д.)
+    usage: /stats <игрок>
+    permission: playerstatsapi.stats
+
+  statsreload:
+    description: Перечитать статистику всех игроков из файлов вручную
+    usage: /statsreload
+    permission: playerstatsapi.admin
+
+  statsonline:
+    description: Список онлайн-игроков с UUID
+    usage: /statsonline
+    permission: playerstatsapi.online
+
+  statstop:
+    description: Топ игроков по ключу статистики
+    usage: /statstop <minecraft:ключ> [лимит]
+    permission: playerstatsapi.top
+
+permissions:
+  playerstatsapi.stat:
+    description: Просмотр одной статы игрока
+    default: op
+  playerstatsapi.stats:
+    description: Просмотр сводки статистики игрока
+    default: op
+  playerstatsapi.top:
+    description: Просмотр топа игроков
+    default: op
+  playerstatsapi.online:
+    description: Просмотр онлайн-игроков
+    default: op
+  playerstatsapi.admin:
+    description: Административные команды (reload и т.д.)
+    default: op
