@@ -127,20 +127,20 @@ public class StatsPlugin extends JavaPlugin {
         JsonObject stats = statsManager.getFullStats(uuid);
         String name = statsManager.getPlayerName(uuid);
 
-        int deaths = StatsUtil.getStatInSection(stats, "minecraft:custom", "minecraft:deaths");
-        int playtimeTk = StatsUtil.getStatInSection(stats, "minecraft:custom", "minecraft:play_time");
-        int jumps = StatsUtil.getStatInSection(stats, "minecraft:custom", "minecraft:jump");
-        int killed = StatsUtil.getStatInSection(stats, "minecraft:custom", "minecraft:mob_kills");
+        int deaths      = StatsUtil.getStatInSection(stats, "minecraft:custom", "minecraft:deaths");
+        int playtimeTk  = StatsUtil.getStatInSection(stats, "minecraft:custom", "minecraft:play_time");
+        int jumps       = StatsUtil.getStatInSection(stats, "minecraft:custom", "minecraft:jump");
+        int killed      = StatsUtil.getStatInSection(stats, "minecraft:custom", "minecraft:mob_kills");
         int playerKills = StatsUtil.getStatInSection(stats, "minecraft:custom", "minecraft:player_kills");
-        int dmgDealt = StatsUtil.getStatInSection(stats, "minecraft:custom", "minecraft:damage_dealt");
-        int dmgTaken = StatsUtil.getStatInSection(stats, "minecraft:custom", "minecraft:damage_taken");
-        int distWalk = StatsUtil.getStatInSection(stats, "minecraft:custom", "minecraft:walk_one_cm");
-        int itemsCraft = StatsUtil.totalSection(stats, "minecraft:crafted");
+        int dmgDealt    = StatsUtil.getStatInSection(stats, "minecraft:custom", "minecraft:damage_dealt");
+        int dmgTaken    = StatsUtil.getStatInSection(stats, "minecraft:custom", "minecraft:damage_taken");
+        int distWalk    = StatsUtil.getStatInSection(stats, "minecraft:custom", "minecraft:walk_one_cm");
+        int itemsCraft  = StatsUtil.totalSection(stats, "minecraft:crafted");
         int blocksMined = StatsUtil.totalSection(stats, "minecraft:mined");
 
         int playtimeMin = playtimeTk / TICKS_PER_MINUTE;
         int hours = playtimeMin / 60;
-        int mins = playtimeMin % 60;
+        int mins  = playtimeMin % 60;
         double distKm = distWalk / 100_000.0; // сантиметры → км
 
         sender.sendMessage("§6§l[PlayerStats] §r§f" + name);
@@ -165,7 +165,8 @@ public class StatsPlugin extends JavaPlugin {
         sender.sendMessage("§eПерезагрузка статистики...");
         Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
             statsManager.preloadAllStatsAsync();
-            Bukkit.getScheduler().runTask(this, () -> sender.sendMessage("§a[Stats] Статистика перезагружена."));
+            Bukkit.getScheduler().runTask(this,
+                    () -> sender.sendMessage("§a[Stats] Статистика перезагружена."));
         });
         return true;
     }
@@ -254,15 +255,10 @@ public class StatsPlugin extends JavaPlugin {
         if (args.length != 1) return List.of();
         // Популярные ключи
         List<String> suggestions = List.of(
-                "minecraft:deaths",
-                "minecraft:jump",
-                "minecraft:play_time",
-                "minecraft:mob_kills",
-                "minecraft:player_kills",
-                "minecraft:damage_dealt",
-                "minecraft:damage_taken",
-                "minecraft:walk_one_cm",
-                "minecraft:fall_one_cm");
+                "minecraft:deaths", "minecraft:jump", "minecraft:play_time",
+                "minecraft:mob_kills", "minecraft:player_kills",
+                "minecraft:damage_dealt", "minecraft:damage_taken",
+                "minecraft:walk_one_cm", "minecraft:fall_one_cm");
         String prefix = args[0].toLowerCase();
         return suggestions.stream().filter(s -> s.startsWith(prefix)).toList();
     }
@@ -278,8 +274,7 @@ public class StatsPlugin extends JavaPlugin {
         // Попробуем как UUID напрямую
         try {
             return UUID.fromString(nameOrUUID);
-        } catch (IllegalArgumentException ignored) {
-        }
+        } catch (IllegalArgumentException ignored) {}
 
         // Имя → UUID из кэша
         UUID cached = statsManager.getUUID(nameOrUUID);
@@ -305,13 +300,14 @@ public class StatsPlugin extends JavaPlugin {
         boolean corsEnabled = getConfig().getBoolean("web.cors.enabled", false);
         String corsOrigin = getConfig().getString("web.cors.allow-origin", "*");
 
-        boolean rlEnabled = getConfig().getBoolean("web.rate-limit.enabled", false);
-        int rlRequests = Math.max(1, getConfig().getInt("web.rate-limit.requests-per-window", 60));
-        long rlWindowMs = Math.max(1000L, getConfig().getLong("web.rate-limit.window-seconds", 60) * 1000L);
+        boolean rlEnabled  = getConfig().getBoolean("web.rate-limit.enabled", false);
+        int     rlRequests = Math.max(1, getConfig().getInt("web.rate-limit.requests-per-window", 60));
+        long    rlWindowMs = Math.max(1000L, getConfig().getLong("web.rate-limit.window-seconds", 60) * 1000L);
 
         InetAddress bindAddress = resolveBindAddress(bindStr);
         WebServer.Settings settings = new WebServer.Settings(
-                bindAddress, maxPlayers, maxTop, corsEnabled, corsOrigin, rlEnabled, rlRequests, rlWindowMs);
+                bindAddress, maxPlayers, maxTop, corsEnabled, corsOrigin,
+                rlEnabled, rlRequests, rlWindowMs);
 
         webServer = new WebServer(statsManager, getLogger(), settings);
         webServer.start(port);

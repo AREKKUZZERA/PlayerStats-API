@@ -29,9 +29,9 @@ public class WebServer {
 
     public WebServer(StatsManager statsManager, Logger logger, Settings settings) {
         this.statsManager = statsManager;
-        this.logger = logger;
-        this.settings = settings;
-        this.rateLimiter = settings.rateLimitEnabled()
+        this.logger       = logger;
+        this.settings     = settings;
+        this.rateLimiter  = settings.rateLimitEnabled()
                 ? new RateLimiter(settings.rateLimitRequests(), settings.rateLimitWindowMillis())
                 : null;
     }
@@ -41,12 +41,12 @@ public class WebServer {
             server = HttpServer.create(new InetSocketAddress(settings.bindAddress(), port), 0);
 
             server.createContext("/moss/players/", this::handlePlayerByUUID);
-            server.createContext("/moss/players", this::handleAllPlayers);
-            server.createContext("/moss/player/", this::handlePlayerByName);
-            server.createContext("/moss/online", this::handleOnline);
-            server.createContext("/moss/summary", this::handleSummary);
-            server.createContext("/moss/top/", this::handleTop);
-            server.createContext("/moss/health", this::handleHealth);
+            server.createContext("/moss/players",  this::handleAllPlayers);
+            server.createContext("/moss/player/",  this::handlePlayerByName);
+            server.createContext("/moss/online",   this::handleOnline);
+            server.createContext("/moss/summary",  this::handleSummary);
+            server.createContext("/moss/top/",     this::handleTop);
+            server.createContext("/moss/health",   this::handleHealth);
 
             server.setExecutor(Executors.newFixedThreadPool(4, r -> {
                 Thread t = new Thread(r, "PlayerStatsAPI-http");
@@ -78,12 +78,16 @@ public class WebServer {
         boolean allowed = rateLimiter.tryAcquire(ip);
 
         // Стандартные RateLimit-заголовки (draft-ietf-httpapi-ratelimit-headers)
-        ex.getResponseHeaders().set("X-RateLimit-Limit", String.valueOf(rateLimiter.getMaxRequests()));
-        ex.getResponseHeaders().set("X-RateLimit-Remaining", String.valueOf(rateLimiter.remainingRequests(ip)));
-        ex.getResponseHeaders().set("X-RateLimit-Reset", String.valueOf(rateLimiter.windowResetMillis(ip) / 1000L));
+        ex.getResponseHeaders().set("X-RateLimit-Limit",
+                String.valueOf(rateLimiter.getMaxRequests()));
+        ex.getResponseHeaders().set("X-RateLimit-Remaining",
+                String.valueOf(rateLimiter.remainingRequests(ip)));
+        ex.getResponseHeaders().set("X-RateLimit-Reset",
+                String.valueOf(rateLimiter.windowResetMillis(ip) / 1000L));
 
         if (!allowed) {
-            ex.getResponseHeaders().set("Retry-After", String.valueOf(rateLimiter.getWindowMillis() / 1000L));
+            ex.getResponseHeaders().set("Retry-After",
+                    String.valueOf(rateLimiter.getWindowMillis() / 1000L));
             sendText(ex, 429, "Too Many Requests");
             return true;
         }
@@ -94,22 +98,19 @@ public class WebServer {
     // GET /moss/players[?limit=N&offset=N&stats=true]
     // =========================================================================
     private void handleAllPlayers(HttpExchange ex) throws IOException {
-        if (!isGet(ex)) {
-            send405(ex);
-            return;
-        }
+        if (!isGet(ex)) { send405(ex); return; }
         if (rateLimited(ex)) return;
 
-        int limit = resolveIntParam(ex, "limit", settings.maxResponsePlayers());
-        int offset = Math.max(0, resolveIntParam(ex, "offset", 0));
+        int limit        = resolveIntParam(ex, "limit", settings.maxResponsePlayers());
+        int offset       = Math.max(0, resolveIntParam(ex, "offset", 0));
         boolean includeStats = "true".equalsIgnoreCase(getParam(ex, "stats"));
 
         Set<UUID> online = statsManager.getOnlinePlayerIdSet();
         List<UUID> uuids = sortedUuids();
 
         int total = uuids.size();
-        int from = Math.min(offset, total);
-        int to = (limit > 0) ? Math.min(from + limit, total) : total;
+        int from  = Math.min(offset, total);
+        int to    = (limit > 0) ? Math.min(from + limit, total) : total;
 
         JsonArray arr = new JsonArray();
         for (int i = from; i < to; i++) {
@@ -118,8 +119,8 @@ public class WebServer {
         }
 
         JsonObject out = new JsonObject();
-        out.addProperty("total", total);
-        out.addProperty("limit", limit);
+        out.addProperty("total",  total);
+        out.addProperty("limit",  limit);
         out.addProperty("offset", offset);
         out.add("players", arr);
 
@@ -130,10 +131,7 @@ public class WebServer {
     // GET /moss/players/<uuid>
     // =========================================================================
     private void handlePlayerByUUID(HttpExchange ex) throws IOException {
-        if (!isGet(ex)) {
-            send405(ex);
-            return;
-        }
+        if (!isGet(ex)) { send405(ex); return; }
         if (rateLimited(ex)) return;
 
         String uuidStr = lastPathSegment(ex);
@@ -143,7 +141,7 @@ public class WebServer {
         }
 
         try {
-            UUID uuid = UUID.fromString(uuidStr);
+            UUID uuid    = UUID.fromString(uuidStr);
             boolean online = statsManager.getOnlinePlayerIdSet().contains(uuid);
             sendJson(ex, 200, GSON.toJson(playerEntry(uuid, online, true)));
         } catch (IllegalArgumentException e) {
@@ -155,10 +153,7 @@ public class WebServer {
     // GET /moss/player/<name>
     // =========================================================================
     private void handlePlayerByName(HttpExchange ex) throws IOException {
-        if (!isGet(ex)) {
-            send405(ex);
-            return;
-        }
+        if (!isGet(ex)) { send405(ex); return; }
         if (rateLimited(ex)) return;
 
         String raw = lastPathSegment(ex);
@@ -187,10 +182,7 @@ public class WebServer {
     // GET /moss/online
     // =========================================================================
     private void handleOnline(HttpExchange ex) throws IOException {
-        if (!isGet(ex)) {
-            send405(ex);
-            return;
-        }
+        if (!isGet(ex)) { send405(ex); return; }
         if (rateLimited(ex)) return;
 
         List<UUID> online = statsManager.getOnlinePlayerIds();
@@ -210,37 +202,35 @@ public class WebServer {
     // GET /moss/summary
     // =========================================================================
     private void handleSummary(HttpExchange ex) throws IOException {
-        if (!isGet(ex)) {
-            send405(ex);
-            return;
-        }
+        if (!isGet(ex)) { send405(ex); return; }
         if (rateLimited(ex)) return;
 
-        long jumps = 0, deaths = 0, playtime = 0, mined = 0, crafted = 0, playerKills = 0, mobKills = 0, dmgDealt = 0;
+        long jumps = 0, deaths = 0, playtime = 0, mined = 0, crafted = 0,
+             playerKills = 0, mobKills = 0, dmgDealt = 0;
 
         for (JsonObject player : statsManager.getStatsCache().values()) {
-            jumps += StatsUtil.getStatInSection(player, "minecraft:custom", "minecraft:jump");
-            deaths += StatsUtil.getStatInSection(player, "minecraft:custom", "minecraft:deaths");
-            playtime += StatsUtil.getStatInSection(player, "minecraft:custom", "minecraft:play_time");
+            jumps       += StatsUtil.getStatInSection(player, "minecraft:custom", "minecraft:jump");
+            deaths      += StatsUtil.getStatInSection(player, "minecraft:custom", "minecraft:deaths");
+            playtime    += StatsUtil.getStatInSection(player, "minecraft:custom", "minecraft:play_time");
             playerKills += StatsUtil.getStatInSection(player, "minecraft:custom", "minecraft:player_kills");
-            mobKills += StatsUtil.getStatInSection(player, "minecraft:custom", "minecraft:mob_kills");
-            dmgDealt += StatsUtil.getStatInSection(player, "minecraft:custom", "minecraft:damage_dealt");
-            mined += StatsUtil.totalSection(player, "minecraft:mined");
-            crafted += StatsUtil.totalSection(player, "minecraft:crafted");
+            mobKills    += StatsUtil.getStatInSection(player, "minecraft:custom", "minecraft:mob_kills");
+            dmgDealt    += StatsUtil.getStatInSection(player, "minecraft:custom", "minecraft:damage_dealt");
+            mined       += StatsUtil.totalSection(player, "minecraft:mined");
+            crafted     += StatsUtil.totalSection(player, "minecraft:crafted");
         }
 
         JsonObject totals = new JsonObject();
-        totals.addProperty("total_jumps", jumps);
-        totals.addProperty("total_deaths", deaths);
+        totals.addProperty("total_jumps",          jumps);
+        totals.addProperty("total_deaths",         deaths);
         totals.addProperty("total_playtime_ticks", playtime);
-        totals.addProperty("total_player_kills", playerKills);
-        totals.addProperty("total_mob_kills", mobKills);
-        totals.addProperty("total_damage_dealt", dmgDealt);
-        totals.addProperty("blocks_mined", mined);
-        totals.addProperty("items_crafted", crafted);
+        totals.addProperty("total_player_kills",   playerKills);
+        totals.addProperty("total_mob_kills",      mobKills);
+        totals.addProperty("total_damage_dealt",   dmgDealt);
+        totals.addProperty("blocks_mined",         mined);
+        totals.addProperty("items_crafted",        crafted);
 
         JsonObject out = new JsonObject();
-        out.addProperty("players_total", statsManager.getStatsCache().size());
+        out.addProperty("players_total",  statsManager.getStatsCache().size());
         out.addProperty("players_online", statsManager.getOnlinePlayerIdSet().size());
         out.add("totals", totals);
 
@@ -252,10 +242,7 @@ public class WebServer {
     // GET /moss/top/<section>/<stat_key>[?limit=N]
     // =========================================================================
     private void handleTop(HttpExchange ex) throws IOException {
-        if (!isGet(ex)) {
-            send405(ex);
-            return;
-        }
+        if (!isGet(ex)) { send405(ex); return; }
         if (rateLimited(ex)) return;
 
         String[] parts = ex.getRequestURI().getPath().split("/");
@@ -276,19 +263,12 @@ public class WebServer {
             section = (qs != null && !qs.isBlank()) ? qs.trim() : null;
         }
 
-        if (!isValidStatKey(statKey)) {
-            sendText(ex, 400, "Invalid stat key");
-            return;
-        }
-        if (section != null && !isValidStatKey(section)) {
-            sendText(ex, 400, "Invalid section");
-            return;
-        }
+        if (!isValidStatKey(statKey)) { sendText(ex, 400, "Invalid stat key"); return; }
+        if (section != null && !isValidStatKey(section)) { sendText(ex, 400, "Invalid section"); return; }
 
         final String finalSection = section;
 
-        List<Map.Entry<UUID, JsonObject>> entries =
-                new ArrayList<>(statsManager.getStatsCache().entrySet());
+        List<Map.Entry<UUID, JsonObject>> entries = new ArrayList<>(statsManager.getStatsCache().entrySet());
         entries.sort((a, b) -> {
             int av = topValue(a.getValue(), statKey, finalSection);
             int bv = topValue(b.getValue(), statKey, finalSection);
@@ -302,15 +282,15 @@ public class WebServer {
         Set<UUID> online = statsManager.getOnlinePlayerIdSet();
         JsonArray arr = new JsonArray();
         for (int i = 0; i < max; i++) {
-            UUID uuid = entries.get(i).getKey();
-            int value = topValue(entries.get(i).getValue(), statKey, finalSection);
+            UUID uuid  = entries.get(i).getKey();
+            int  value = topValue(entries.get(i).getValue(), statKey, finalSection);
 
             JsonObject o = new JsonObject();
-            o.addProperty("rank", i + 1);
-            o.addProperty("uuid", uuid.toString());
-            o.addProperty("name", statsManager.getPlayerName(uuid));
-            o.addProperty("online", online.contains(uuid));
-            o.addProperty("value", value);
+            o.addProperty("rank",     i + 1);
+            o.addProperty("uuid",     uuid.toString());
+            o.addProperty("name",     statsManager.getPlayerName(uuid));
+            o.addProperty("online",   online.contains(uuid));
+            o.addProperty("value",    value);
             o.addProperty("stat_key", statKey);
             if (finalSection != null) o.addProperty("section", finalSection);
             arr.add(o);
@@ -323,19 +303,16 @@ public class WebServer {
     // GET /moss/health  — служебный эндпоинт без rate limit
     // =========================================================================
     private void handleHealth(HttpExchange ex) throws IOException {
-        if (!isGet(ex)) {
-            send405(ex);
-            return;
-        }
+        if (!isGet(ex)) { send405(ex); return; }
 
         JsonObject out = new JsonObject();
-        out.addProperty("status", "ok");
-        out.addProperty("players_cached", statsManager.getStatsCache().size());
-        out.addProperty("players_online", statsManager.getOnlinePlayerIdSet().size());
-        out.addProperty("rate_limit", rateLimiter != null);
+        out.addProperty("status",          "ok");
+        out.addProperty("players_cached",  statsManager.getStatsCache().size());
+        out.addProperty("players_online",  statsManager.getOnlinePlayerIdSet().size());
+        out.addProperty("rate_limit",      rateLimiter != null);
         if (rateLimiter != null) {
-            out.addProperty(
-                    "rate_limit_rps", (long) rateLimiter.getMaxRequests() * 1000 / rateLimiter.getWindowMillis());
+            out.addProperty("rate_limit_rps",
+                    (long) rateLimiter.getMaxRequests() * 1000 / rateLimiter.getWindowMillis());
         }
 
         sendJson(ex, 200, GSON.toJson(out));
@@ -359,10 +336,10 @@ public class WebServer {
 
     private void send(HttpExchange ex, int code, String body, String contentType) throws IOException {
         byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
-        var headers = ex.getResponseHeaders();
+        var headers  = ex.getResponseHeaders();
         headers.set("Content-Type", contentType);
         if (settings.corsEnabled()) {
-            headers.set("Access-Control-Allow-Origin", settings.corsAllowOrigin());
+            headers.set("Access-Control-Allow-Origin",  settings.corsAllowOrigin());
             headers.set("Access-Control-Allow-Methods", "GET, OPTIONS");
         }
         ex.sendResponseHeaders(code, bytes.length);
@@ -377,8 +354,8 @@ public class WebServer {
 
     private JsonObject playerEntry(UUID uuid, boolean online, boolean includeStats) {
         JsonObject o = new JsonObject();
-        o.addProperty("uuid", uuid.toString());
-        o.addProperty("name", statsManager.getPlayerName(uuid));
+        o.addProperty("uuid",   uuid.toString());
+        o.addProperty("name",   statsManager.getPlayerName(uuid));
         o.addProperty("online", online);
         if (includeStats) o.add("stats", statsManager.getFullStats(uuid));
         return o;
@@ -405,7 +382,7 @@ public class WebServer {
     }
 
     private String lastPathSegment(HttpExchange ex) {
-        String path = ex.getRequestURI().getPath();
+        String path   = ex.getRequestURI().getPath();
         String[] parts = path.split("/");
         if (parts.length < 4) return null;
         String segment = parts[parts.length - 1];
@@ -435,11 +412,13 @@ public class WebServer {
     }
 
     private boolean isValidStatKey(String key) {
-        return key != null && !key.isBlank() && key.length() <= 128 && key.matches("[a-z0-9_:\\-.]+");
+        return key != null && !key.isBlank() && key.length() <= 128
+                && key.matches("[a-z0-9_:\\-.]+");
     }
 
     private boolean isValidName(String name) {
-        return name != null && !name.isBlank() && name.length() <= 16 && name.matches("[A-Za-z0-9_]+");
+        return name != null && !name.isBlank() && name.length() <= 16
+                && name.matches("[A-Za-z0-9_]+");
     }
 
     // =========================================================================
@@ -457,13 +436,10 @@ public class WebServer {
             long rateLimitWindowMillis) {
 
         /** Обратная совместимость — без rate limit. */
-        public Settings(
-                InetAddress bindAddress,
-                int maxResponsePlayers,
-                int maxTopResults,
-                boolean corsEnabled,
-                String corsAllowOrigin) {
-            this(bindAddress, maxResponsePlayers, maxTopResults, corsEnabled, corsAllowOrigin, false, 60, 60_000L);
+        public Settings(InetAddress bindAddress, int maxResponsePlayers,
+                        int maxTopResults, boolean corsEnabled, String corsAllowOrigin) {
+            this(bindAddress, maxResponsePlayers, maxTopResults,
+                 corsEnabled, corsAllowOrigin, false, 60, 60_000L);
         }
     }
 }

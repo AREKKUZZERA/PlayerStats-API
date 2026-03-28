@@ -1,12 +1,13 @@
 package com.plp.statsplugin;
 
-import static org.junit.jupiter.api.Assertions.*;
-
 import com.google.gson.JsonObject;
-import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+
+import java.util.Set;
+
+import static org.junit.jupiter.api.Assertions.*;
 
 @DisplayName("StatsUtil")
 class StatsUtilTest {
@@ -17,9 +18,9 @@ class StatsUtilTest {
 
     /** Builds a minimal Minecraft stats JSON for a given section + key → value. */
     private static JsonObject statsJson(String section, String key, int value) {
-        JsonObject root = new JsonObject();
-        JsonObject stats = new JsonObject();
-        JsonObject sec = new JsonObject();
+        JsonObject root    = new JsonObject();
+        JsonObject stats   = new JsonObject();
+        JsonObject sec     = new JsonObject();
         sec.addProperty(key, value);
         stats.add(section, sec);
         root.add("stats", stats);
@@ -28,9 +29,9 @@ class StatsUtilTest {
 
     /** Builds a stats JSON with multiple values in one section. */
     private static JsonObject multiValueSection(String section, String... kvPairs) {
-        JsonObject root = new JsonObject();
+        JsonObject root  = new JsonObject();
         JsonObject stats = new JsonObject();
-        JsonObject sec = new JsonObject();
+        JsonObject sec   = new JsonObject();
         for (int i = 0; i < kvPairs.length - 1; i += 2) {
             sec.addProperty(kvPairs[i], Integer.parseInt(kvPairs[i + 1]));
         }
@@ -134,8 +135,10 @@ class StatsUtilTest {
         @Test
         @DisplayName("sums all values in a section")
         void sumsCorrectly() {
-            JsonObject json = multiValueSection(
-                    "minecraft:mined", "minecraft:stone", "10", "minecraft:dirt", "5", "minecraft:sand", "3");
+            JsonObject json = multiValueSection("minecraft:mined",
+                    "minecraft:stone", "10",
+                    "minecraft:dirt",  "5",
+                    "minecraft:sand",  "3");
             assertEquals(18, StatsUtil.totalSection(json, "minecraft:mined"));
         }
 
@@ -156,7 +159,7 @@ class StatsUtilTest {
         @Test
         @DisplayName("returns 0 for empty section")
         void emptySection() {
-            JsonObject root = new JsonObject();
+            JsonObject root  = new JsonObject();
             JsonObject stats = new JsonObject();
             stats.add("minecraft:mined", new JsonObject());
             root.add("stats", stats);
@@ -202,10 +205,10 @@ class StatsUtilTest {
         @Test
         @DisplayName("returns all present section names")
         void multipleSections() {
-            JsonObject root = new JsonObject();
+            JsonObject root  = new JsonObject();
             JsonObject stats = new JsonObject();
-            stats.add("minecraft:custom", new JsonObject());
-            stats.add("minecraft:mined", new JsonObject());
+            stats.add("minecraft:custom",  new JsonObject());
+            stats.add("minecraft:mined",   new JsonObject());
             root.add("stats", stats);
 
             Set<String> sections = StatsUtil.getAvailableStatSections(root);
@@ -223,7 +226,7 @@ class StatsUtilTest {
         @Test
         @DisplayName("non-object entries are excluded")
         void nonObjectEntriesExcluded() {
-            JsonObject root = new JsonObject();
+            JsonObject root  = new JsonObject();
             JsonObject stats = new JsonObject();
             stats.addProperty("not_a_section", "value"); // primitive, not an object
             stats.add("minecraft:custom", new JsonObject());
