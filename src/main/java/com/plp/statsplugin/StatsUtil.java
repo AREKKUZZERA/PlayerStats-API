@@ -108,7 +108,8 @@ public final class StatsUtil {
         for (Map.Entry<String, JsonElement> entry : sec.entrySet()) {
             try {
                 total += entry.getValue().getAsLong();
-            } catch (Exception ignored) {}
+            } catch (Exception ignored) {
+            }
         }
         // Обрезаем до int: теоретически может переполниться, но на практике нет
         return (int) Math.min(total, Integer.MAX_VALUE);

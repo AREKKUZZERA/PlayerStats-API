@@ -23,6 +23,7 @@ public class StatsManager implements Listener {
 
     /** Двусторонний маппинг: имя (в нижнем регистре) ↔ uuid */
     private final ConcurrentMap<String, UUID> nameToUuid = new ConcurrentHashMap<>();
+
     private final ConcurrentMap<UUID, String> uuidToName = new ConcurrentHashMap<>();
 
     /**
@@ -167,8 +168,7 @@ public class StatsManager implements Listener {
         }
 
         long elapsed = System.currentTimeMillis() - start;
-        log.info("[Sync] " + label + " — загружено " + loaded + "/" + uuids.size()
-                + " записей за " + elapsed + " мс.");
+        log.info("[Sync] " + label + " — загружено " + loaded + "/" + uuids.size() + " записей за " + elapsed + " мс.");
     }
 
     private void cacheName(UUID uuid, String name) {

@@ -21,7 +21,7 @@ public final class RateLimiter {
 
     private final ConcurrentMap<String, Bucket> buckets = new ConcurrentHashMap<>();
 
-    private final int  maxRequests;
+    private final int maxRequests;
     private final long windowMillis;
     private final Clock clock;
 
@@ -31,11 +31,11 @@ public final class RateLimiter {
 
     /** Package-private — allows injecting a fixed clock in tests. */
     RateLimiter(int maxRequests, long windowMillis, Clock clock) {
-        if (maxRequests < 1)  throw new IllegalArgumentException("maxRequests must be ≥ 1");
+        if (maxRequests < 1) throw new IllegalArgumentException("maxRequests must be ≥ 1");
         if (windowMillis < 1) throw new IllegalArgumentException("windowMillis must be ≥ 1");
-        this.maxRequests  = maxRequests;
+        this.maxRequests = maxRequests;
         this.windowMillis = windowMillis;
-        this.clock        = clock;
+        this.clock = clock;
     }
 
     /**
@@ -46,7 +46,7 @@ public final class RateLimiter {
     public boolean tryAcquire(String ip) {
         if (ip == null || ip.isBlank()) return true;
 
-        long now    = clock.millis();
+        long now = clock.millis();
         Bucket bucket = buckets.compute(ip, (k, b) -> {
             if (b == null || now >= b.windowEnd.get()) {
                 return new Bucket(maxRequests, now + windowMillis);
@@ -74,8 +74,13 @@ public final class RateLimiter {
         return (b == null) ? clock.millis() + windowMillis : b.windowEnd.get();
     }
 
-    public int  getMaxRequests()  { return maxRequests; }
-    public long getWindowMillis() { return windowMillis; }
+    public int getMaxRequests() {
+        return maxRequests;
+    }
+
+    public long getWindowMillis() {
+        return windowMillis;
+    }
 
     // -------------------------------------------------------------------------
 
@@ -95,7 +100,7 @@ public final class RateLimiter {
         final AtomicLong windowEnd;
 
         Bucket(int tokens, long windowEnd) {
-            this.tokens    = new AtomicInteger(tokens);
+            this.tokens = new AtomicInteger(tokens);
             this.windowEnd = new AtomicLong(windowEnd);
         }
     }
