@@ -50,7 +50,7 @@ public class StatsPlugin extends JavaPlugin {
             getLogger().info("Web API отключён в конфиге.");
         }
 
-        getLogger().info("PlayerStatsAPI v" + getDescription().getVersion() + " включён.");
+        getLogger().info("PlayerStatsAPI v" + getPluginMeta().getVersion() + " включён.");
     }
 
     @Override
@@ -58,7 +58,7 @@ public class StatsPlugin extends JavaPlugin {
         if (webServer != null) {
             webServer.stop();
         }
-        getLogger().info("PlayerStatsAPI отключён.");
+        getLogger().info("PlayerStatsAPI v" + getPluginMeta().getVersion() + " отключён.");
     }
 
     @Override
