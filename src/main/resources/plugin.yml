@@ -1,7 +1,7 @@
 name: PlayerStatsAPI
 version: ${project.version}
 main: com.plp.statsplugin.StatsPlugin
-api-version: 1.21
+api-version: '1.21'
 description: Vanilla statistics web API and command helper.
 commands:
   stat:
