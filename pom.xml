@@ -18,7 +18,7 @@
         <mockito.version>5.18.0</mockito.version>
 
         <minecraft.api.version>1.21</minecraft.api.version>
-        <paper.api.version>1.21.4-R0.1-SNAPSHOT</paper.api.version>
+    <paper.api.version>1.21.11-R0.1-SNAPSHOT</paper.api.version>
     </properties>
 
     <repositories>
