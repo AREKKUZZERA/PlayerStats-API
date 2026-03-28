@@ -1,6 +1,11 @@
 package com.plp.statsplugin;
 
 import com.google.gson.JsonObject;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.logging.Logger;
+import java.util.stream.Collectors;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
@@ -8,12 +13,6 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
-
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.logging.Logger;
-import java.util.stream.Collectors;
 
 public class StatsManager implements Listener {
 
@@ -157,8 +156,7 @@ public class StatsManager implements Listener {
         }
 
         long elapsed = System.currentTimeMillis() - start;
-        log.info("[Sync] " + label + " — загружено " + loaded + "/" + uuids.size()
-                + " записей за " + elapsed + " мс.");
+        log.info("[Sync] " + label + " — загружено " + loaded + "/" + uuids.size() + " записей за " + elapsed + " мс.");
     }
 
     private void cacheName(UUID uuid, String name) {

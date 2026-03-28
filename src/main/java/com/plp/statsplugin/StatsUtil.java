@@ -3,7 +3,6 @@ package com.plp.statsplugin;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-
 import java.io.File;
 import java.io.FileReader;
 import java.util.HashSet;
@@ -19,15 +18,15 @@ public final class StatsUtil {
 
     /** Список известных секций статистики Minecraft */
     private static final String[] STAT_SECTIONS = {
-            "minecraft:custom",
-            "minecraft:mined",
-            "minecraft:crafted",
-            "minecraft:used",
-            "minecraft:broken",
-            "minecraft:picked_up",
-            "minecraft:dropped",
-            "minecraft:killed",
-            "minecraft:killed_by"
+        "minecraft:custom",
+        "minecraft:mined",
+        "minecraft:crafted",
+        "minecraft:used",
+        "minecraft:broken",
+        "minecraft:picked_up",
+        "minecraft:dropped",
+        "minecraft:killed",
+        "minecraft:killed_by"
     };
 
     private static volatile File statsFolder;

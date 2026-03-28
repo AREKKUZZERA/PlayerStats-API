@@ -1,7 +1,6 @@
 name: PlayerStatsAPI
-version: 2.0
+version: ${project.version}
 main: com.plp.statsplugin.StatsPlugin
-# 1.21 — минимальная совместимость; работает на 1.21.x и 26.1
 api-version: 1.21
 description: Vanilla statistics web API and command helper.
 commands:

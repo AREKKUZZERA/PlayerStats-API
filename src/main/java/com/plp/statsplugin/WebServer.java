@@ -5,7 +5,6 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
-
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetAddress;
@@ -38,11 +37,11 @@ public class WebServer {
             server = HttpServer.create(new InetSocketAddress(settings.bindAddress(), port), 0);
 
             server.createContext("/moss/players/", this::handlePlayerByUUID);
-            server.createContext("/moss/players",  this::handleAllPlayers);
-            server.createContext("/moss/player/",  this::handlePlayerByName);
-            server.createContext("/moss/online",   this::handleOnline);
-            server.createContext("/moss/summary",  this::handleSummary);
-            server.createContext("/moss/top/",     this::handleTop);
+            server.createContext("/moss/players", this::handleAllPlayers);
+            server.createContext("/moss/player/", this::handlePlayerByName);
+            server.createContext("/moss/online", this::handleOnline);
+            server.createContext("/moss/summary", this::handleSummary);
+            server.createContext("/moss/top/", this::handleTop);
 
             // Фиксированный пул потоков; 4 хватает при типичной нагрузке
             server.setExecutor(Executors.newFixedThreadPool(4, r -> {
@@ -64,9 +63,12 @@ public class WebServer {
     // GET /moss/players[?limit=N&offset=N]
     // =========================================================================
     private void handleAllPlayers(HttpExchange ex) throws IOException {
-        if (!isGet(ex)) { send405(ex); return; }
+        if (!isGet(ex)) {
+            send405(ex);
+            return;
+        }
 
-        int limit  = resolveIntParam(ex, "limit",  settings.maxResponsePlayers());
+        int limit = resolveIntParam(ex, "limit", settings.maxResponsePlayers());
         int offset = resolveIntParam(ex, "offset", 0);
         offset = Math.max(0, offset);
 
@@ -74,8 +76,8 @@ public class WebServer {
         List<UUID> uuids = sortedUuids();
 
         int total = uuids.size();
-        int from  = Math.min(offset, total);
-        int to    = (limit > 0) ? Math.min(from + limit, total) : total;
+        int from = Math.min(offset, total);
+        int to = (limit > 0) ? Math.min(from + limit, total) : total;
 
         JsonArray arr = new JsonArray();
         for (int i = from; i < to; i++) {
@@ -84,8 +86,8 @@ public class WebServer {
         }
 
         JsonObject out = new JsonObject();
-        out.addProperty("total",  total);
-        out.addProperty("limit",  limit);
+        out.addProperty("total", total);
+        out.addProperty("limit", limit);
         out.addProperty("offset", offset);
         out.add("players", arr);
 
@@ -96,10 +98,16 @@ public class WebServer {
     // GET /moss/players/<uuid>
     // =========================================================================
     private void handlePlayerByUUID(HttpExchange ex) throws IOException {
-        if (!isGet(ex)) { send405(ex); return; }
+        if (!isGet(ex)) {
+            send405(ex);
+            return;
+        }
 
         String uuidStr = lastPathSegment(ex);
-        if (uuidStr == null) { sendText(ex, 400, "Usage: /moss/players/<uuid>"); return; }
+        if (uuidStr == null) {
+            sendText(ex, 400, "Usage: /moss/players/<uuid>");
+            return;
+        }
 
         try {
             UUID uuid = UUID.fromString(uuidStr);
@@ -113,16 +121,28 @@ public class WebServer {
     // GET /moss/player/<name>
     // =========================================================================
     private void handlePlayerByName(HttpExchange ex) throws IOException {
-        if (!isGet(ex)) { send405(ex); return; }
+        if (!isGet(ex)) {
+            send405(ex);
+            return;
+        }
 
         String raw = lastPathSegment(ex);
-        if (raw == null) { sendText(ex, 400, "Usage: /moss/player/<name>"); return; }
+        if (raw == null) {
+            sendText(ex, 400, "Usage: /moss/player/<name>");
+            return;
+        }
 
         String name = URLDecoder.decode(raw, StandardCharsets.UTF_8);
-        if (!isValidName(name)) { sendText(ex, 400, "Invalid player name"); return; }
+        if (!isValidName(name)) {
+            sendText(ex, 400, "Invalid player name");
+            return;
+        }
 
         UUID uuid = statsManager.getUUID(name);
-        if (uuid == null) { sendText(ex, 404, "Player not found"); return; }
+        if (uuid == null) {
+            sendText(ex, 404, "Player not found");
+            return;
+        }
 
         sendJson(ex, 200, GSON.toJson(statsManager.getFullStats(uuid)));
     }
@@ -131,7 +151,10 @@ public class WebServer {
     // GET /moss/online
     // =========================================================================
     private void handleOnline(HttpExchange ex) throws IOException {
-        if (!isGet(ex)) { send405(ex); return; }
+        if (!isGet(ex)) {
+            send405(ex);
+            return;
+        }
 
         List<UUID> online = statsManager.getOnlinePlayerIds();
         online.sort(Comparator.comparing(UUID::toString));
@@ -146,7 +169,10 @@ public class WebServer {
     // GET /moss/summary
     // =========================================================================
     private void handleSummary(HttpExchange ex) throws IOException {
-        if (!isGet(ex)) { send405(ex); return; }
+        if (!isGet(ex)) {
+            send405(ex);
+            return;
+        }
 
         long jumps = 0, deaths = 0, playtime = 0, mined = 0, crafted = 0;
 
@@ -157,23 +183,27 @@ public class WebServer {
 
                 var custom = statRoot.getAsJsonObject("minecraft:custom");
                 if (custom != null) {
-                    jumps    += longVal(custom, "minecraft:jump");
-                    deaths   += longVal(custom, "minecraft:deaths");
+                    jumps += longVal(custom, "minecraft:jump");
+                    deaths += longVal(custom, "minecraft:deaths");
                     playtime += longVal(custom, "minecraft:play_time");
                 }
-                var minedObj   = statRoot.getAsJsonObject("minecraft:mined");
+                var minedObj = statRoot.getAsJsonObject("minecraft:mined");
                 var craftedObj = statRoot.getAsJsonObject("minecraft:crafted");
-                if (minedObj   != null) for (var k : minedObj.keySet())   mined   += minedObj.get(k).getAsLong();
-                if (craftedObj != null) for (var k : craftedObj.keySet()) crafted += craftedObj.get(k).getAsLong();
-            } catch (Exception ignored) {}
+                if (minedObj != null)
+                    for (var k : minedObj.keySet()) mined += minedObj.get(k).getAsLong();
+                if (craftedObj != null)
+                    for (var k : craftedObj.keySet())
+                        crafted += craftedObj.get(k).getAsLong();
+            } catch (Exception ignored) {
+            }
         }
 
         JsonObject totals = new JsonObject();
-        totals.addProperty("total_jumps",    jumps);
-        totals.addProperty("total_deaths",   deaths);
+        totals.addProperty("total_jumps", jumps);
+        totals.addProperty("total_deaths", deaths);
         totals.addProperty("total_playtime", playtime);
-        totals.addProperty("blocks_mined",   mined);
-        totals.addProperty("items_crafted",  crafted);
+        totals.addProperty("blocks_mined", mined);
+        totals.addProperty("items_crafted", crafted);
 
         JsonObject out = new JsonObject();
         out.addProperty("players", statsManager.getStatsCache().size());
@@ -187,13 +217,19 @@ public class WebServer {
     // GET /moss/top/<section>/<stat_key>[?limit=N]
     // =========================================================================
     private void handleTop(HttpExchange ex) throws IOException {
-        if (!isGet(ex)) { send405(ex); return; }
+        if (!isGet(ex)) {
+            send405(ex);
+            return;
+        }
 
         String[] parts = ex.getRequestURI().getPath().split("/");
         // parts: ["", "moss", "top", ...]
-        if (parts.length < 4) { sendText(ex, 400, "Usage: /moss/top/<stat_key>"); return; }
+        if (parts.length < 4) {
+            sendText(ex, 400, "Usage: /moss/top/<stat_key>");
+            return;
+        }
 
-        String section  = null;
+        String section = null;
         String statKey;
 
         if (parts.length >= 5) {
@@ -207,13 +243,20 @@ public class WebServer {
             if (qs != null && !qs.isBlank()) section = qs.trim();
         }
 
-        if (!isValidStatKey(statKey)) { sendText(ex, 400, "Invalid stat key"); return; }
-        if (section != null && !isValidStatKey(section)) { sendText(ex, 400, "Invalid section"); return; }
+        if (!isValidStatKey(statKey)) {
+            sendText(ex, 400, "Invalid stat key");
+            return;
+        }
+        if (section != null && !isValidStatKey(section)) {
+            sendText(ex, 400, "Invalid section");
+            return;
+        }
 
         final String finalSection = section;
 
         // Сортировка по убыванию значения
-        List<Map.Entry<UUID, JsonObject>> entries = new ArrayList<>(statsManager.getStatsCache().entrySet());
+        List<Map.Entry<UUID, JsonObject>> entries =
+                new ArrayList<>(statsManager.getStatsCache().entrySet());
         entries.sort((a, b) -> {
             int av = topValue(a.getValue(), statKey, finalSection);
             int bv = topValue(b.getValue(), statKey, finalSection);
@@ -226,14 +269,14 @@ public class WebServer {
 
         JsonArray arr = new JsonArray();
         for (int i = 0; i < max; i++) {
-            UUID uuid  = entries.get(i).getKey();
-            int  value = topValue(entries.get(i).getValue(), statKey, finalSection);
+            UUID uuid = entries.get(i).getKey();
+            int value = topValue(entries.get(i).getValue(), statKey, finalSection);
 
             JsonObject o = new JsonObject();
-            o.addProperty("rank",     i + 1);
-            o.addProperty("uuid",     uuid.toString());
-            o.addProperty("name",     statsManager.getPlayerName(uuid));
-            o.addProperty("value",    value);
+            o.addProperty("rank", i + 1);
+            o.addProperty("uuid", uuid.toString());
+            o.addProperty("name", statsManager.getPlayerName(uuid));
+            o.addProperty("value", value);
             o.addProperty("stat_key", statKey);
             if (finalSection != null) o.addProperty("section", finalSection);
             arr.add(o);
@@ -276,8 +319,8 @@ public class WebServer {
 
     private JsonObject playerEntry(UUID uuid, boolean online, boolean includeStats) {
         JsonObject o = new JsonObject();
-        o.addProperty("uuid",   uuid.toString());
-        o.addProperty("name",   statsManager.getPlayerName(uuid));
+        o.addProperty("uuid", uuid.toString());
+        o.addProperty("name", statsManager.getPlayerName(uuid));
         o.addProperty("online", online);
         if (includeStats) o.add("stats", statsManager.getFullStats(uuid));
         return o;
@@ -297,7 +340,11 @@ public class WebServer {
 
     private static long longVal(JsonObject obj, String key) {
         if (!obj.has(key)) return 0;
-        try { return obj.get(key).getAsLong(); } catch (Exception e) { return 0; }
+        try {
+            return obj.get(key).getAsLong();
+        } catch (Exception e) {
+            return 0;
+        }
     }
 
     // =========================================================================
@@ -339,13 +386,11 @@ public class WebServer {
     }
 
     private boolean isValidStatKey(String key) {
-        return key != null && !key.isBlank() && key.length() <= 128
-                && key.matches("[a-z0-9_:\\-.]+");
+        return key != null && !key.isBlank() && key.length() <= 128 && key.matches("[a-z0-9_:\\-.]+");
     }
 
     private boolean isValidName(String name) {
-        return name != null && !name.isBlank() && name.length() <= 16
-                && name.matches("[A-Za-z0-9_]+");
+        return name != null && !name.isBlank() && name.length() <= 16 && name.matches("[A-Za-z0-9_]+");
     }
 
     // =========================================================================
@@ -357,6 +402,5 @@ public class WebServer {
             int maxResponsePlayers,
             int maxTopResults,
             boolean corsEnabled,
-            String corsAllowOrigin
-    ) {}
+            String corsAllowOrigin) {}
 }

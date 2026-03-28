@@ -1,15 +1,14 @@
 package com.plp.statsplugin;
 
+import java.io.File;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
+import java.util.logging.Level;
 import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
-
-import java.io.File;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
-import java.util.logging.Level;
 
 public class StatsPlugin extends JavaPlugin {
 
@@ -32,12 +31,8 @@ public class StatsPlugin extends JavaPlugin {
         // Периодическое обновление статистики онлайн-игроков
         int intervalTicks = 20 * getConfig().getInt("update-interval-seconds", 60);
         if (intervalTicks > 0) {
-            Bukkit.getScheduler().runTaskTimer(
-                    this,
-                    statsManager::updateAllOnlinePlayers,
-                    intervalTicks,
-                    intervalTicks
-            );
+            Bukkit.getScheduler()
+                    .runTaskTimer(this, statsManager::updateAllOnlinePlayers, intervalTicks, intervalTicks);
         } else {
             getLogger().warning("update-interval-seconds <= 0: авто-обновление статистики отключено.");
         }
