@@ -314,8 +314,24 @@ public class StatsPlugin extends JavaPlugin {
                 bindAddress, maxPlayers, maxTop, corsEnabled, corsOrigin, rlEnabled, rlRequests, rlWindowMs);
 
         webServer = new WebServer(statsManager, getLogger(), settings);
-        webServer.start(port);
-        getLogger().info("Web API запущен на " + bindAddress.getHostAddress() + ":" + port);
+
+        // Генерируем fallback-порты: port+1, port+2, ... port+9
+        int[] fallbacks = new int[9];
+        for (int i = 0; i < fallbacks.length; i++) fallbacks[i] = port + i + 1;
+
+        int boundPort = webServer.start(port, fallbacks);
+        if (boundPort == -1) {
+            getLogger()
+                    .severe("Не удалось занять ни один порт из диапазона "
+                            + port + "–" + (port + fallbacks.length)
+                            + ". Web API не запущен. Измените web.port в config.yml.");
+        } else {
+            if (boundPort != port) {
+                getLogger()
+                        .warning("Порт " + port + " был занят. Web API запущен на резервном порту " + boundPort + ".");
+            }
+            getLogger().info("Web API запущен на " + bindAddress.getHostAddress() + ":" + boundPort);
+        }
     }
 
     private File resolveStatsFolder() {

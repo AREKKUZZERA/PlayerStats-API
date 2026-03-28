@@ -36,27 +36,45 @@ public class WebServer {
                 : null;
     }
 
-    public void start(int port) {
-        try {
-            server = HttpServer.create(new InetSocketAddress(settings.bindAddress(), port), 0);
+    /**
+     * Attempts to bind on {@code port}. If that port is busy and
+     * {@code fallbackPorts} are provided, tries each in order.
+     *
+     * @return the port actually bound, or -1 if every candidate failed
+     */
+    public int start(int port, int... fallbackPorts) {
+        int[] candidates = new int[1 + fallbackPorts.length];
+        candidates[0] = port;
+        System.arraycopy(fallbackPorts, 0, candidates, 1, fallbackPorts.length);
 
-            server.createContext("/moss/players/", this::handlePlayerByUUID);
-            server.createContext("/moss/players", this::handleAllPlayers);
-            server.createContext("/moss/player/", this::handlePlayerByName);
-            server.createContext("/moss/online", this::handleOnline);
-            server.createContext("/moss/summary", this::handleSummary);
-            server.createContext("/moss/top/", this::handleTop);
-            server.createContext("/moss/health", this::handleHealth);
+        for (int candidate : candidates) {
+            try {
+                server = HttpServer.create(new InetSocketAddress(settings.bindAddress(), candidate), 0);
 
-            server.setExecutor(Executors.newFixedThreadPool(4, r -> {
-                Thread t = new Thread(r, "PlayerStatsAPI-http");
-                t.setDaemon(true);
-                return t;
-            }));
-            server.start();
-        } catch (IOException e) {
-            logger.log(Level.SEVERE, "Не удалось запустить Web-сервер.", e);
+                server.createContext("/moss/players/", this::handlePlayerByUUID);
+                server.createContext("/moss/players", this::handleAllPlayers);
+                server.createContext("/moss/player/", this::handlePlayerByName);
+                server.createContext("/moss/online", this::handleOnline);
+                server.createContext("/moss/summary", this::handleSummary);
+                server.createContext("/moss/top/", this::handleTop);
+                server.createContext("/moss/health", this::handleHealth);
+
+                server.setExecutor(Executors.newFixedThreadPool(4, r -> {
+                    Thread t = new Thread(r, "PlayerStatsAPI-http");
+                    t.setDaemon(true);
+                    return t;
+                }));
+                server.start();
+                return candidate;
+            } catch (java.net.BindException e) {
+                logger.warning("Порт " + candidate + " занят, пробую следующий...");
+                server = null;
+            } catch (IOException e) {
+                logger.log(Level.SEVERE, "Не удалось запустить Web-сервер на порту " + candidate + ".", e);
+                server = null;
+            }
         }
+        return -1;
     }
 
     public void stop() {

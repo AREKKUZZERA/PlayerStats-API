@@ -9,7 +9,7 @@ A lightweight **Paper/Purpur plugin** that exposes Minecraft vanilla player stat
 | Requirement | Version |
 |---|---|
 | Java | 21+ |
-| Paper / Purpur | 1.21 – 1.21.4 |
+| Paper / Purpur | 1.21 – 1.21.11 |
 
 ---
 
@@ -283,12 +283,33 @@ mvn test
 
 ### Publishing to Modrinth
 
-Push a tag matching `v*` (e.g. `v2.1`). The GitHub Actions workflow will build and publish automatically. Requires repository secrets:
+> **Important:** Modrinth has **no auto-detection** of supported Minecraft versions from `plugin.yml`.  
+> Versions must always be declared explicitly — either in the upload form or via a publish tool.  
+> This project uses **`mc-publish`** in GitHub Actions to handle that automatically on every release.
 
-| Secret | Description |
+#### Setup (one time)
+
+1. Create a project on [modrinth.com](https://modrinth.com) if you haven't already.
+2. Go to **modrinth.com/settings/pats** → create a token with `VERSION_CREATE` scope.
+3. In your GitHub repo: **Settings → Secrets and variables → Actions → New repository secret**:
+
+| Secret | Value |
 |---|---|
-| `MODRINTH_PROJECT_ID` | Your project ID on Modrinth |
-| `MODRINTH_TOKEN` | API token from modrinth.com/settings/pats |
+| `MODRINTH_PROJECT_ID` | Your project's ID or slug from Modrinth |
+| `MODRINTH_TOKEN` | The PAT token you just created |
+
+#### Releasing
+
+```bash
+git tag v2.1
+git push origin v2.1
+```
+
+The workflow (`build & publish`) will trigger automatically:
+1. Builds the jar and runs tests.
+2. Publishes to Modrinth with the game versions and loaders declared in `.github/workflows/maven.yml`.
+
+To support a new Minecraft version (e.g. `1.21.5`), add it to the `game-versions` list in the workflow file and push a new tag.
 
 ---
 
