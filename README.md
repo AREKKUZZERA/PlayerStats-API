@@ -1,4 +1,4 @@
-# PlayerStatsAPI
+![Logo](src/main/resources/playerstatsapi-logo.png)
 
 A lightweight **Paper/Purpur plugin** that exposes Minecraft vanilla player statistics as a JSON HTTP API and adds useful in-game commands. No database required — reads directly from the world's `stats/*.json` files.
 
