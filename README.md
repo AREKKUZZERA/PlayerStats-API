@@ -313,6 +313,6 @@ To support a new Minecraft version (e.g. `1.21.5`), add it to the `game-versions
 
 ---
 
-## License
+## AI Usage
 
-[MIT](LICENSE)
+Some parts of this project were generated with the help of AI tools (chatgpt, copilot, claude) and then reviewed manually.
