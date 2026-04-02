@@ -81,6 +81,25 @@ public class WebServer {
         if (server != null) server.stop(0);
     }
 
+        private boolean handlePreflight(HttpExchange ex) throws IOException {
+
+        if (!ex.getRequestMethod().equalsIgnoreCase("OPTIONS")) {
+            return false;
+        }
+
+        var headers = ex.getResponseHeaders();
+        if (settings.corsEnabled()) {
+            headers.set("Access-Control-Allow-Origin", settings.corsAllowOrigin());
+            headers.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+            headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Request-Id");
+            headers.set("Access-Control-Max-Age", "86400");
+            headers.set("Vary", "Origin");
+        }
+
+        ex.sendResponseHeaders(204, -1);
+        ex.close();
+        return true;
+    }
     // =========================================================================
     // Rate-limit guard  — вызывается в начале каждого обработчика
     // =========================================================================
@@ -112,6 +131,8 @@ public class WebServer {
     // GET /moss/players[?limit=N&offset=N&stats=true]
     // =========================================================================
     private void handleAllPlayers(HttpExchange ex) throws IOException {
+        if (handlePreflight(ex)) return;
+
         if (!isGet(ex)) {
             send405(ex);
             return;
@@ -148,6 +169,8 @@ public class WebServer {
     // GET /moss/players/<uuid>
     // =========================================================================
     private void handlePlayerByUUID(HttpExchange ex) throws IOException {
+        if (handlePreflight(ex)) return;
+        
         if (!isGet(ex)) {
             send405(ex);
             return;
@@ -173,6 +196,7 @@ public class WebServer {
     // GET /moss/player/<name>
     // =========================================================================
     private void handlePlayerByName(HttpExchange ex) throws IOException {
+        if (handlePreflight(ex)) return;
         if (!isGet(ex)) {
             send405(ex);
             return;
@@ -205,6 +229,7 @@ public class WebServer {
     // GET /moss/online
     // =========================================================================
     private void handleOnline(HttpExchange ex) throws IOException {
+        if (handlePreflight(ex)) return;
         if (!isGet(ex)) {
             send405(ex);
             return;
@@ -228,6 +253,8 @@ public class WebServer {
     // GET /moss/summary
     // =========================================================================
     private void handleSummary(HttpExchange ex) throws IOException {
+        if (handlePreflight(ex)) return;
+
         if (!isGet(ex)) {
             send405(ex);
             return;
@@ -270,6 +297,7 @@ public class WebServer {
     // GET /moss/top/<section>/<stat_key>[?limit=N]
     // =========================================================================
     private void handleTop(HttpExchange ex) throws IOException {
+        if (handlePreflight(ex)) return;
         if (!isGet(ex)) {
             send405(ex);
             return;
@@ -341,6 +369,7 @@ public class WebServer {
     // GET /moss/health  — служебный эндпоинт без rate limit
     // =========================================================================
     private void handleHealth(HttpExchange ex) throws IOException {
+        if (handlePreflight(ex)) return;
         if (!isGet(ex)) {
             send405(ex);
             return;
@@ -372,18 +401,24 @@ public class WebServer {
     }
 
     private void send405(HttpExchange ex) throws IOException {
+        ex.getResponseHeaders().set("Allow", "GET, OPTIONS");
         sendText(ex, 405, "Method Not Allowed");
     }
 
     private void send(HttpExchange ex, int code, String body, String contentType) throws IOException {
-        byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
         var headers = ex.getResponseHeaders();
         headers.set("Content-Type", contentType);
+
         if (settings.corsEnabled()) {
             headers.set("Access-Control-Allow-Origin", settings.corsAllowOrigin());
-            headers.set("Access-Control-Allow-Methods", "GET, OPTIONS");
+            headers.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+            headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Request-Id");
+            headers.set("Vary", "Origin");
         }
+
+        byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
         ex.sendResponseHeaders(code, bytes.length);
+
         try (OutputStream os = ex.getResponseBody()) {
             os.write(bytes);
         }
