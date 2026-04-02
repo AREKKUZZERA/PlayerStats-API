@@ -81,8 +81,7 @@ public class WebServer {
         if (server != null) server.stop(0);
     }
 
-        private boolean handlePreflight(HttpExchange ex) throws IOException {
-
+    private boolean handlePreflight(HttpExchange ex) throws IOException {
         if (!ex.getRequestMethod().equalsIgnoreCase("OPTIONS")) {
             return false;
         }
@@ -170,7 +169,7 @@ public class WebServer {
     // =========================================================================
     private void handlePlayerByUUID(HttpExchange ex) throws IOException {
         if (handlePreflight(ex)) return;
-        
+
         if (!isGet(ex)) {
             send405(ex);
             return;
