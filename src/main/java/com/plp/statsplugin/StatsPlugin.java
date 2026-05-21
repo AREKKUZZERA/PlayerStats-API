@@ -163,10 +163,7 @@ public class StatsPlugin extends JavaPlugin {
      */
     private boolean cmdStatsReload(CommandSender sender) {
         sender.sendMessage("§eПерезагрузка статистики...");
-        Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
-            statsManager.preloadAllStatsAsync();
-            Bukkit.getScheduler().runTask(this, () -> sender.sendMessage("§a[Stats] Статистика перезагружена."));
-        });
+        statsManager.preloadAllStatsAsync(() -> sender.sendMessage("§a[Stats] Статистика перезагружена."));
         return true;
     }
 

@@ -272,7 +272,7 @@ GET /moss/top/minecraft:mined/minecraft:stone?limit=10
 git clone https://github.com/your-org/PlayerStats-API.git
 cd PlayerStats-API
 mvn clean package -DskipTests
-# Output: target/PlayerStats-API-2.1.jar
+# Output: target/PlayerStats-API-2.1.1.jar
 ```
 
 ### Running tests
@@ -301,8 +301,8 @@ mvn test
 #### Releasing
 
 ```bash
-git tag v2.1
-git push origin v2.1
+git tag v2.1.1
+git push origin v2.1.1
 ```
 
 The workflow (`build & publish`) will trigger automatically:

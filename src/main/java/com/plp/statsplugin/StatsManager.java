@@ -42,9 +42,16 @@ public class StatsManager implements Listener {
     // =========================================================================
 
     public void preloadAllStatsAsync() {
+        preloadAllStatsAsync(null);
+    }
+
+    public void preloadAllStatsAsync(Runnable completion) {
         OfflinePlayer[] offline = Bukkit.getOfflinePlayers();
         if (offline.length == 0) {
             log.info("Нет сохранённых игроков для предзагрузки.");
+            if (completion != null) {
+                completion.run();
+            }
             return;
         }
 
@@ -56,7 +63,12 @@ public class StatsManager implements Listener {
         }
 
         log.info("Предзагрузка статистики: " + uuids.size() + " игроков...");
-        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> loadStats(uuids, "предзагрузка"));
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+            loadStats(uuids, "предзагрузка");
+            if (completion != null) {
+                Bukkit.getScheduler().runTask(plugin, completion);
+            }
+        });
     }
 
     // =========================================================================

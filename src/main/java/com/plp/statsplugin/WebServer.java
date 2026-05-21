@@ -12,6 +12,7 @@ import java.net.InetSocketAddress;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -26,6 +27,7 @@ public class WebServer {
     private final RateLimiter rateLimiter; // null = отключён
 
     private HttpServer server;
+    private ExecutorService executor;
 
     public WebServer(StatsManager statsManager, Logger logger, Settings settings) {
         this.statsManager = statsManager;
@@ -59,11 +61,12 @@ public class WebServer {
                 server.createContext("/moss/top/", this::handleTop);
                 server.createContext("/moss/health", this::handleHealth);
 
-                server.setExecutor(Executors.newFixedThreadPool(4, r -> {
+                executor = Executors.newFixedThreadPool(4, r -> {
                     Thread t = new Thread(r, "PlayerStatsAPI-http");
                     t.setDaemon(true);
                     return t;
-                }));
+                });
+                server.setExecutor(executor);
                 server.start();
                 return candidate;
             } catch (java.net.BindException e) {
@@ -79,6 +82,7 @@ public class WebServer {
 
     public void stop() {
         if (server != null) server.stop(0);
+        if (executor != null) executor.shutdownNow();
     }
 
     private boolean handlePreflight(HttpExchange ex) throws IOException {
@@ -89,7 +93,7 @@ public class WebServer {
         var headers = ex.getResponseHeaders();
         if (settings.corsEnabled()) {
             headers.set("Access-Control-Allow-Origin", settings.corsAllowOrigin());
-            headers.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+            headers.set("Access-Control-Allow-Methods", "GET, OPTIONS");
             headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Request-Id");
             headers.set("Access-Control-Max-Age", "86400");
             headers.set("Vary", "Origin");
@@ -410,7 +414,7 @@ public class WebServer {
 
         if (settings.corsEnabled()) {
             headers.set("Access-Control-Allow-Origin", settings.corsAllowOrigin());
-            headers.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+            headers.set("Access-Control-Allow-Methods", "GET, OPTIONS");
             headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Request-Id");
             headers.set("Vary", "Origin");
         }
