@@ -24,14 +24,22 @@ A lightweight **Paper/Purpur plugin** that exposes Minecraft vanilla player stat
 ## Configuration (`config.yml`)
 
 ```yaml
-# World name to read stats from (auto-detected if left empty)
-stats-world: "world"
+stats:
+  # World name to read stats from (auto-detected if left empty)
+  world: "world"
 
-# Explicit path to the stats/ folder (overrides stats-world if set)
-stats-folder: ""
+  # Explicit path to the stats/ folder (overrides stats.world if set)
+  folder: ""
 
-# How often to refresh online-player stats (seconds; 0 = disabled)
-update-interval-seconds: 60
+  # How often to refresh online-player stats (seconds; 0 = disabled)
+  update-interval-seconds: 60
+
+  # Log every background sync to console
+  log-sync-updates: false
+
+commands:
+  default-top-limit: 10
+  max-top-limit: 50
 
 web:
   enabled: true
@@ -58,6 +66,10 @@ All commands require **operator** permissions by default. Permissions can be con
 
 | Command | Permission | Description |
 |---|---|---|
+| `/playerstatsapi help` (`/psa help`, `/psapi help`) | `playerstatsapi.admin` | Show command help |
+| `/psa status` | `playerstatsapi.admin` | Show plugin status and active settings |
+| `/psa reload` | `playerstatsapi.admin` | Reload config and stats |
+| `/psa synclog <on\|off>` | `playerstatsapi.admin` | Toggle `[Sync]` console logs and save config |
 | `/stat <player> <minecraft:key>` | `playerstatsapi.stat` | Show a single stat value (works for offline players) |
 | `/stats <player>` | `playerstatsapi.stats` | Full stats summary: time played, deaths, jumps, distance, kills, damage, blocks mined, items crafted |
 | `/statstop <minecraft:key> [limit]` | `playerstatsapi.top` | Top players for any stat key (limit 1–50, default 10) |
@@ -73,6 +85,8 @@ All commands require **operator** permissions by default. Permissions can be con
 /statstop minecraft:player_kills
 /statsonline
 /statsreload
+/psa status
+/psa synclog off
 ```
 
 ---
@@ -272,7 +286,7 @@ GET /moss/top/minecraft:mined/minecraft:stone?limit=10
 git clone https://github.com/your-org/PlayerStats-API.git
 cd PlayerStats-API
 mvn clean package -DskipTests
-# Output: target/PlayerStats-API-2.1.1.jar
+# Output: target/PlayerStats-API-2.1.2.jar
 ```
 
 ### Running tests
@@ -301,8 +315,8 @@ mvn test
 #### Releasing
 
 ```bash
-git tag v2.1.1
-git push origin v2.1.1
+git tag v2.1.2
+git push origin v2.1.2
 ```
 
 The workflow (`build & publish`) will trigger automatically:

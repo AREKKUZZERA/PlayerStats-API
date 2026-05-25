@@ -5,6 +5,12 @@ api-version: '1.21'
 description: Vanilla statistics web API and command helper.
 
 commands:
+  playerstatsapi:
+    description: Админ-команда PlayerStatsAPI
+    usage: /playerstatsapi [help|reload|status|synclog]
+    aliases: [psa, psapi]
+    permission: playerstatsapi.admin
+
   stat:
     description: Показать конкретную стату игрока по ключу
     usage: /stat <игрок> <minecraft:ключ>

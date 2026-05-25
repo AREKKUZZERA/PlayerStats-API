@@ -11,11 +11,14 @@ import org.bukkit.OfflinePlayer;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.scheduler.BukkitTask;
 
 public class StatsPlugin extends JavaPlugin {
 
     private StatsManager statsManager;
     private WebServer webServer;
+    private BukkitTask autoUpdateTask;
+    private int webBoundPort = -1;
 
     // Тики в секунду → минутах: 1 тик = 1/20 сек = 1/1200 мин
     private static final int TICKS_PER_MINUTE = 1200;
@@ -32,20 +35,9 @@ public class StatsPlugin extends JavaPlugin {
 
         statsManager.preloadAllStatsAsync();
 
-        int intervalTicks = 20 * getConfig().getInt("update-interval-seconds", 60);
-        if (intervalTicks > 0) {
-            Bukkit.getScheduler()
-                    .runTaskTimer(this, statsManager::updateAllOnlinePlayers, intervalTicks, intervalTicks);
-        } else {
-            getLogger().warning("update-interval-seconds <= 0: авто-обновление статистики отключено.");
-        }
+        restartStatsAutoUpdate();
 
-        boolean webEnabled = getConfig().getBoolean("web.enabled", true);
-        if (webEnabled) {
-            startWebServer();
-        } else {
-            getLogger().info("Web API отключён в конфиге.");
-        }
+        restartWebServer();
 
         getLogger().info("PlayerStatsAPI v" + getPluginMeta().getVersion() + " включён.");
     }
@@ -55,12 +47,16 @@ public class StatsPlugin extends JavaPlugin {
         if (webServer != null) {
             webServer.stop();
         }
+        if (autoUpdateTask != null) {
+            autoUpdateTask.cancel();
+        }
         getLogger().info("PlayerStatsAPI v" + getPluginMeta().getVersion() + " отключён.");
     }
 
     @Override
     public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
         return switch (cmd.getName().toLowerCase()) {
+            case "playerstatsapi" -> cmdPlayerStatsApi(sender, args);
             case "stat" -> cmdStat(sender, args);
             case "stats" -> cmdStats(sender, args);
             case "statsreload" -> cmdStatsReload(sender);
@@ -73,6 +69,7 @@ public class StatsPlugin extends JavaPlugin {
     @Override
     public List<String> onTabComplete(CommandSender sender, Command cmd, String alias, String[] args) {
         return switch (cmd.getName().toLowerCase()) {
+            case "playerstatsapi" -> tabCompletePlayerStatsApi(args);
             case "stat", "stats" -> tabCompletePlayers(args);
             case "statstop" -> tabCompleteTop(args);
             default -> List.of();
@@ -82,6 +79,59 @@ public class StatsPlugin extends JavaPlugin {
     // =========================================================================
     // Команды
     // =========================================================================
+
+    private boolean cmdPlayerStatsApi(CommandSender sender, String[] args) {
+        if (args.length == 0 || args[0].equalsIgnoreCase("help")) {
+            sendPlayerStatsApiHelp(sender);
+            return true;
+        }
+
+        return switch (args[0].toLowerCase()) {
+            case "reload" -> cmdStatsReload(sender);
+            case "status" -> cmdPlayerStatsApiStatus(sender);
+            case "synclog" -> cmdPlayerStatsApiSyncLog(sender, args);
+            default -> {
+                sender.sendMessage("§cНеизвестная подкоманда: §f" + args[0]);
+                sendPlayerStatsApiHelp(sender);
+                yield true;
+            }
+        };
+    }
+
+    private void sendPlayerStatsApiHelp(CommandSender sender) {
+        sender.sendMessage("§6[PlayerStatsAPI] §fКоманды:");
+        sender.sendMessage(" §e/psa help §7— показать помощь");
+        sender.sendMessage(" §e/psa status §7— состояние плагина");
+        sender.sendMessage(" §e/psa reload §7— перечитать config.yml и статистику");
+        sender.sendMessage(" §e/psa synclog <on|off> §7— включить или выключить [Sync] лог");
+        sender.sendMessage(" §e/stat <игрок> <minecraft:ключ> §7— одна статистика");
+        sender.sendMessage(" §e/stats <игрок> §7— сводка игрока");
+        sender.sendMessage(" §e/statstop <minecraft:ключ> [лимит] §7— топ игроков");
+        sender.sendMessage(" §e/statsonline §7— онлайн-игроки");
+    }
+
+    private boolean cmdPlayerStatsApiStatus(CommandSender sender) {
+        sender.sendMessage("§6[PlayerStatsAPI] §fСтатус:");
+        sender.sendMessage(" §7Кеш игроков: §a" + statsManager.getStatsCache().size());
+        sender.sendMessage(" §7Онлайн: §a" + statsManager.getOnlinePlayerIdSet().size());
+        sender.sendMessage(" §7Авто-обновление: §a" + getStatsUpdateIntervalSeconds() + " сек.");
+        sender.sendMessage(" §7Sync-лог: §a" + (isSyncUpdateLoggingEnabled() ? "on" : "off"));
+        sender.sendMessage(" §7Web API: §a" + (webServer != null ? "on, порт " + webBoundPort : "off"));
+        sender.sendMessage(" §7Топ по умолчанию: §a" + getDefaultTopLimit() + "§7, максимум: §a" + getMaxTopLimit());
+        return true;
+    }
+
+    private boolean cmdPlayerStatsApiSyncLog(CommandSender sender, String[] args) {
+        if (args.length != 2 || (!args[1].equalsIgnoreCase("on") && !args[1].equalsIgnoreCase("off"))) {
+            sender.sendMessage("§eИспользование: §f/psa synclog <on|off>");
+            return true;
+        }
+
+        boolean enabled = args[1].equalsIgnoreCase("on");
+        setSyncUpdateLoggingEnabled(enabled);
+        sender.sendMessage("§a[Stats] Sync-лог " + (enabled ? "включён." : "выключен."));
+        return true;
+    }
 
     /**
      * /stat <игрок> <minecraft:ключ>
@@ -162,6 +212,7 @@ public class StatsPlugin extends JavaPlugin {
      * Принудительно перечитывает статистику всех игроков из файлов.
      */
     private boolean cmdStatsReload(CommandSender sender) {
+        reloadRuntimeConfig();
         sender.sendMessage("§eПерезагрузка статистики...");
         statsManager.preloadAllStatsAsync(() -> sender.sendMessage("§a[Stats] Статистика перезагружена."));
         return true;
@@ -196,10 +247,10 @@ public class StatsPlugin extends JavaPlugin {
         }
 
         String statKey = args[0];
-        int limit = 10;
+        int limit = getDefaultTopLimit();
         if (args.length >= 2) {
             try {
-                limit = Math.min(Math.max(1, Integer.parseInt(args[1])), 50);
+                limit = Math.min(Math.max(1, Integer.parseInt(args[1])), getMaxTopLimit());
             } catch (NumberFormatException e) {
                 sender.sendMessage("§cНекорректный лимит: §f" + args[1]);
                 return true;
@@ -264,6 +315,22 @@ public class StatsPlugin extends JavaPlugin {
         return suggestions.stream().filter(s -> s.startsWith(prefix)).toList();
     }
 
+    private List<String> tabCompletePlayerStatsApi(String[] args) {
+        if (args.length == 1) {
+            String prefix = args[0].toLowerCase();
+            return List.of("help", "reload", "status", "synclog").stream()
+                    .filter(s -> s.startsWith(prefix))
+                    .toList();
+        }
+        if (args.length == 2 && args[0].equalsIgnoreCase("synclog")) {
+            String prefix = args[1].toLowerCase();
+            return List.of("on", "off").stream()
+                    .filter(s -> s.startsWith(prefix))
+                    .toList();
+        }
+        return List.of();
+    }
+
     // =========================================================================
     // Хелперы
     // =========================================================================
@@ -316,23 +383,62 @@ public class StatsPlugin extends JavaPlugin {
         int[] fallbacks = new int[9];
         for (int i = 0; i < fallbacks.length; i++) fallbacks[i] = port + i + 1;
 
-        int boundPort = webServer.start(port, fallbacks);
-        if (boundPort == -1) {
+        webBoundPort = webServer.start(port, fallbacks);
+        if (webBoundPort == -1) {
+            webServer = null;
             getLogger()
                     .severe("Не удалось занять ни один порт из диапазона "
                             + port + "–" + (port + fallbacks.length)
                             + ". Web API не запущен. Измените web.port в config.yml.");
         } else {
-            if (boundPort != port) {
+            if (webBoundPort != port) {
                 getLogger()
-                        .warning("Порт " + port + " был занят. Web API запущен на резервном порту " + boundPort + ".");
+                        .warning("Порт " + port + " был занят. Web API запущен на резервном порту " + webBoundPort
+                                + ".");
             }
-            getLogger().info("Web API запущен на " + bindAddress.getHostAddress() + ":" + boundPort);
+            getLogger().info("Web API запущен на " + bindAddress.getHostAddress() + ":" + webBoundPort);
+        }
+    }
+
+    private void reloadRuntimeConfig() {
+        reloadConfig();
+        StatsUtil.setStatsFolder(resolveStatsFolder());
+        restartStatsAutoUpdate();
+        restartWebServer();
+    }
+
+    private void restartStatsAutoUpdate() {
+        if (autoUpdateTask != null) {
+            autoUpdateTask.cancel();
+            autoUpdateTask = null;
+        }
+
+        int intervalTicks = 20 * getStatsUpdateIntervalSeconds();
+        if (intervalTicks > 0) {
+            autoUpdateTask = Bukkit.getScheduler()
+                    .runTaskTimer(this, statsManager::updateAllOnlinePlayers, intervalTicks, intervalTicks);
+        } else {
+            getLogger().warning("stats.update-interval-seconds <= 0: авто-обновление статистики отключено.");
+        }
+    }
+
+    private void restartWebServer() {
+        if (webServer != null) {
+            webServer.stop();
+            webServer = null;
+            webBoundPort = -1;
+        }
+
+        if (getConfig().getBoolean("web.enabled", true)) {
+            startWebServer();
+        } else {
+            getLogger().info("Web API отключён в конфиге.");
         }
     }
 
     private File resolveStatsFolder() {
-        String customFolder = getConfig().getString("stats-folder", "").trim();
+        String customFolder =
+                getConfigString("stats.folder", "stats-folder", "").trim();
         if (!customFolder.isEmpty()) {
             File candidate = new File(customFolder);
             if (!candidate.isAbsolute()) {
@@ -345,7 +451,7 @@ public class StatsPlugin extends JavaPlugin {
             getLogger().warning("stats-folder не найден: " + candidate.getAbsolutePath());
         }
 
-        String worldName = getConfig().getString("stats-world", "world");
+        String worldName = getConfigString("stats.world", "stats-world", "world");
         File statsDir = findStatsDirByWorld(worldName);
         if (statsDir != null) {
             getLogger().info("Stats-папка мира: " + statsDir.getAbsolutePath());
@@ -373,6 +479,50 @@ public class StatsPlugin extends JavaPlugin {
 
     private boolean isValidPort(int port) {
         return port > 0 && port <= 65535;
+    }
+
+    int getStatsUpdateIntervalSeconds() {
+        return getConfigInt("stats.update-interval-seconds", "update-interval-seconds", 60);
+    }
+
+    boolean isSyncUpdateLoggingEnabled() {
+        return getConfigBoolean("stats.log-sync-updates", "log-sync-updates", false);
+    }
+
+    private void setSyncUpdateLoggingEnabled(boolean enabled) {
+        getConfig().set("stats.log-sync-updates", enabled);
+        saveConfig();
+    }
+
+    private int getDefaultTopLimit() {
+        int max = getMaxTopLimit();
+        int value = getConfigInt("commands.default-top-limit", null, 10);
+        return Math.min(Math.max(1, value), max);
+    }
+
+    private int getMaxTopLimit() {
+        return Math.max(1, getConfigInt("commands.max-top-limit", null, 50));
+    }
+
+    private String getConfigString(String primaryPath, String legacyPath, String defaultValue) {
+        if (getConfig().contains(primaryPath)) {
+            return getConfig().getString(primaryPath, defaultValue);
+        }
+        return getConfig().getString(legacyPath, defaultValue);
+    }
+
+    private int getConfigInt(String primaryPath, String legacyPath, int defaultValue) {
+        if (getConfig().contains(primaryPath)) {
+            return getConfig().getInt(primaryPath, defaultValue);
+        }
+        return legacyPath == null ? defaultValue : getConfig().getInt(legacyPath, defaultValue);
+    }
+
+    private boolean getConfigBoolean(String primaryPath, String legacyPath, boolean defaultValue) {
+        if (getConfig().contains(primaryPath)) {
+            return getConfig().getBoolean(primaryPath, defaultValue);
+        }
+        return getConfig().getBoolean(legacyPath, defaultValue);
     }
 
     private InetAddress resolveBindAddress(String address) {
