@@ -17,7 +17,7 @@ A lightweight **Paper/Purpur plugin** that exposes Minecraft vanilla player stat
 
 1. Drop `PlayerStats-API-x.x.jar` into your `plugins/` folder.
 2. Start the server — `config.yml` is generated automatically.
-3. The HTTP API starts on port `8080` by default.
+3. The HTTP API starts on port `8080` by default. If the port is busy, the plugin tries `8081` through `8089`.
 
 ---
 
@@ -58,6 +58,8 @@ web:
     window-seconds: 60
 ```
 
+Legacy flat config keys are still accepted where supported: `stats-folder`, `stats-world`, `update-interval-seconds`, and `log-sync-updates`.
+
 ---
 
 ## In-game Commands
@@ -95,7 +97,9 @@ All commands require **operator** permissions by default. Permissions can be con
 
 Base URL: `http://<server>:8080`
 
-All endpoints accept only **GET** requests and return **JSON** (`application/json; charset=UTF-8`).
+All endpoints accept **GET** requests. CORS preflight `OPTIONS` is supported when `web.cors.enabled` is `true`; other methods return `405 Method Not Allowed`.
+
+Successful API responses return JSON (`application/json; charset=UTF-8`). Validation and rate-limit errors return plain text.
 
 When rate limiting is enabled, every response includes:
 
@@ -168,7 +172,9 @@ GET /moss/players/069a79f4-44e9-4726-a5be-fca90e38aaf5
 }
 ```
 
-**Errors:** `400 Invalid UUID`, `404` (player not in cache — has never joined)
+If the UUID is valid but not cached, the endpoint still returns `200` with `name: "Unknown"` and an empty `stats` object.
+
+**Errors:** `400 Invalid UUID`
 
 ---
 
@@ -228,7 +234,8 @@ Server-wide aggregated totals across all cached players.
 
 ### `GET /moss/top/<stat_key>`
 
-Top players for a given stat key, searched across **all sections**.
+Top players for a given stat key, searched across known vanilla stat sections:
+`minecraft:custom`, `minecraft:mined`, `minecraft:crafted`, `minecraft:used`, `minecraft:broken`, `minecraft:picked_up`, `minecraft:dropped`, `minecraft:killed`, and `minecraft:killed_by`.
 
 **Query parameters:**
 
@@ -289,10 +296,24 @@ mvn clean package -DskipTests
 # Output: target/PlayerStats-API-2.1.2.jar
 ```
 
+The normal CI build runs:
+
+```bash
+mvn -B clean package
+```
+
 ### Running tests
 
 ```bash
 mvn test
+```
+
+### Formatting
+
+`mvn clean package` also runs Spotless in the `verify` phase. To check formatting directly:
+
+```bash
+mvn spotless:check
 ```
 
 ### Publishing to Modrinth
@@ -323,7 +344,9 @@ The workflow (`build & publish`) will trigger automatically:
 1. Builds the jar and runs tests.
 2. Publishes to Modrinth with the game versions and loaders declared in `.github/workflows/maven.yml`.
 
-To support a new Minecraft version (e.g. `1.21.5`), add it to the `game-versions` list in the workflow file and push a new tag.
+Current workflow metadata publishes for Paper/Purpur on Minecraft `1.21` through `1.21.11`.
+
+The publish job uses `CHANGELOG.md` as the Modrinth changelog file. Add or update that file before pushing a release tag.
 
 ---
 
