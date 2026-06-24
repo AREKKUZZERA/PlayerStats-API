@@ -1,6 +1,6 @@
 ![Logo](src/main/resources/playerstatsapi-logo.png)
 
-A lightweight **Paper/Purpur plugin** that exposes Minecraft vanilla player statistics as a JSON HTTP API and adds useful in-game commands. No database required — reads directly from the world's `stats/*.json` files.
+A lightweight **Paper/Purpur plugin** that exposes Minecraft vanilla player statistics as a JSON HTTP API and adds useful in-game commands. No database required — vanilla stats are read from the world's `stats/*.json` files, and activity history is stored locally in `plugins/PlayerStatsAPI/history.json`.
 
 ---
 
@@ -37,6 +37,10 @@ stats:
   # Log every background sync to console
   log-sync-updates: false
 
+history:
+  # Max play_time growth points stored per player in history.json
+  max-points-per-player: 2880
+
 commands:
   default-top-limit: 10
   max-top-limit: 50
@@ -46,7 +50,7 @@ web:
   port: 8080
   bind-address: "0.0.0.0"   # 127.0.0.1 = local only
   max-response-players: 0    # 0 = no limit
-  max-top-results: 20
+  max-top-results: 20       # Caps /moss/top/* and /moss/activity/top results
 
   cors:
     enabled: false
@@ -129,7 +133,7 @@ Server health check. **Not rate-limited.**
 
 ### `GET /moss/players`
 
-List all known players (paginated). Stats are **not** included by default for performance.
+List all known players (paginated). Stats are **not** included by default for performance. A compact `activity` object is included when the player has history data.
 
 **Query parameters:**
 
@@ -145,7 +149,18 @@ List all known players (paginated). Stats are **not** included by default for pe
   "limit": 50,
   "offset": 0,
   "players": [
-    { "uuid": "...", "name": "Steve", "online": false }
+    {
+      "uuid": "...",
+      "name": "Steve",
+      "online": false,
+      "activity": {
+        "last_seen": 1760000000000,
+        "last_quit": 1760000000000,
+        "last_session_millis": 3600000,
+        "active_now_millis": 0,
+        "playtime_ticks": 72000
+      }
+    }
   ]
 }
 ```
@@ -268,6 +283,119 @@ GET /moss/top/minecraft:mined/minecraft:stone?limit=10
 
 ---
 
+### `GET /moss/activity/<uuid>`
+
+Activity metadata and accumulated playtime analytics for one player.
+
+```json
+{
+  "uuid": "...",
+  "name": "Steve",
+  "first_seen": 1760000000000,
+  "first_seen_iso": "2025-10-09T08:53:20Z",
+  "last_seen": 1760003600000,
+  "last_seen_iso": "2025-10-09T09:53:20Z",
+  "last_join": 1760000000000,
+  "last_join_iso": "2025-10-09T08:53:20Z",
+  "last_quit": 1760003600000,
+  "last_quit_iso": "2025-10-09T09:53:20Z",
+  "last_session_millis": 3600000,
+  "active_now_millis": 0,
+  "playtime_ticks": 72000,
+  "total_recorded_delta_ticks": 72000,
+  "daily_playtime_ticks": {
+    "2025-10-09": 72000
+  },
+  "heatmap_ticks": {
+    "4-8": 36000,
+    "4-9": 36000
+  }
+}
+```
+
+`heatmap_ticks` keys use UTC weekday-hour format: `1-0` = Monday 00:00 UTC, `7-23` = Sunday 23:00 UTC.
+
+---
+
+### `GET /moss/activity/<uuid>/playtime`
+
+Time series for building playtime growth charts.
+
+**Query parameters:**
+
+| Parameter | Default | Description |
+|---|---|---|
+| `limit` | `100` | Return the latest N history points (`0` = all stored points) |
+
+```json
+[
+  {
+    "timestamp": 1760000000000,
+    "timestamp_iso": "2025-10-09T08:53:20Z",
+    "playtime_ticks": 60000,
+    "delta_ticks": 1200
+  }
+]
+```
+
+---
+
+### `GET /moss/activity/top`
+
+Top players by recorded playtime growth.
+
+**Query parameters:**
+
+| Parameter | Default | Description |
+|---|---|---|
+| `window` | `day` | `day`, `24h`, `week`, or `7d` |
+| `limit` | `max-top-results` | Number of players to return |
+
+```
+GET /moss/activity/top?window=week&limit=10
+```
+
+```json
+[
+  {
+    "rank": 1,
+    "uuid": "...",
+    "name": "Steve",
+    "delta_ticks": 864000,
+    "delta_seconds": 43200,
+    "active_now_millis": 0
+  }
+]
+```
+
+---
+
+### `GET /moss/activity/heatmap`
+
+Global activity heatmap and daily playtime buckets aggregated across all tracked players.
+
+```json
+{
+  "heatmap_ticks": {
+    "1-18": 24000,
+    "1-19": 36000
+  },
+  "daily_playtime_ticks": {
+    "2025-10-09": 60000
+  }
+}
+```
+
+---
+
+### `GET /moss/activity/heatmap/<uuid>`
+
+Per-player activity heatmap and daily playtime buckets.
+
+Response shape is identical to `/moss/activity/heatmap`, with an additional `uuid` field.
+
+---
+
 ## Common stat keys
 
 ### `minecraft:custom` section
@@ -293,7 +421,7 @@ GET /moss/top/minecraft:mined/minecraft:stone?limit=10
 git clone https://github.com/your-org/PlayerStats-API.git
 cd PlayerStats-API
 mvn clean package -DskipTests
-# Output: target/PlayerStats-API-2.1.2.jar
+# Output: target/PlayerStats-API-2.1.3.jar
 ```
 
 The normal CI build runs:
@@ -310,11 +438,13 @@ mvn test
 
 ### Formatting
 
-`mvn clean package` also runs Spotless in the `verify` phase. To check formatting directly:
+Spotless is bound to the Maven `verify` phase. To run tests, build, and formatting checks together:
 
 ```bash
-mvn spotless:check
+mvn verify
 ```
+
+To check formatting directly, run `mvn spotless:check`.
 
 ### Publishing to Modrinth
 
@@ -336,8 +466,8 @@ mvn spotless:check
 #### Releasing
 
 ```bash
-git tag v2.1.2
-git push origin v2.1.2
+git tag v2.1.3
+git push origin v2.1.3
 ```
 
 The workflow (`build & publish`) will trigger automatically:

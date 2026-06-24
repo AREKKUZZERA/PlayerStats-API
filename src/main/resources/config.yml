@@ -19,6 +19,11 @@ stats:
   # false = не спамить сообщениями [Sync] раз в update-interval-seconds
   log-sync-updates: false
 
+history:
+  # Максимум точек роста play_time на игрока в plugins/PlayerStatsAPI/history.json
+  # 2880 ~= 2 дня при update-interval-seconds: 60
+  max-points-per-player: 2880
+
 commands:
   # Основная админ-команда:
   # /playerstatsapi, /psa, /psapi

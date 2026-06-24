@@ -22,6 +22,7 @@ public class WebServer {
     private static final Gson GSON = new Gson();
 
     private final StatsManager statsManager;
+    private final StatsHistoryManager historyManager;
     private final Logger logger;
     private final Settings settings;
     private final RateLimiter rateLimiter; // null = отключён
@@ -29,8 +30,9 @@ public class WebServer {
     private HttpServer server;
     private ExecutorService executor;
 
-    public WebServer(StatsManager statsManager, Logger logger, Settings settings) {
+    public WebServer(StatsManager statsManager, StatsHistoryManager historyManager, Logger logger, Settings settings) {
         this.statsManager = statsManager;
+        this.historyManager = historyManager;
         this.logger = logger;
         this.settings = settings;
         this.rateLimiter = settings.rateLimitEnabled()
@@ -58,6 +60,7 @@ public class WebServer {
                 server.createContext("/moss/player/", this::handlePlayerByName);
                 server.createContext("/moss/online", this::handleOnline);
                 server.createContext("/moss/summary", this::handleSummary);
+                server.createContext("/moss/activity", this::handleActivity);
                 server.createContext("/moss/top/", this::handleTop);
                 server.createContext("/moss/health", this::handleHealth);
 
@@ -296,6 +299,102 @@ public class WebServer {
     }
 
     // =========================================================================
+    // GET /moss/activity/<uuid>
+    // GET /moss/activity/<uuid>/playtime[?limit=N]
+    // GET /moss/activity/top[?window=day|week&limit=N]
+    // GET /moss/activity/heatmap
+    // GET /moss/activity/heatmap/<uuid>
+    // =========================================================================
+    private void handleActivity(HttpExchange ex) throws IOException {
+        if (handlePreflight(ex)) return;
+        if (!isGet(ex)) {
+            send405(ex);
+            return;
+        }
+        if (rateLimited(ex)) return;
+
+        String path = ex.getRequestURI().getPath();
+        String suffix = path.substring("/moss/activity".length());
+        if (suffix.isBlank() || suffix.equals("/")) {
+            sendText(ex, 400, "Usage: /moss/activity/<uuid>");
+            return;
+        }
+
+        String[] parts = suffix.substring(1).split("/");
+        if (parts.length == 1 && parts[0].equalsIgnoreCase("top")) {
+            handleActivityTop(ex);
+            return;
+        }
+        if (parts.length >= 1 && parts[0].equalsIgnoreCase("heatmap")) {
+            handleActivityHeatmap(ex, parts);
+            return;
+        }
+
+        UUID uuid = parseUuid(parts[0]);
+        if (uuid == null) {
+            sendText(ex, 400, "Invalid UUID");
+            return;
+        }
+
+        if (parts.length >= 2 && parts[1].equalsIgnoreCase("playtime")) {
+            int limit = resolveIntParam(ex, "limit", 100);
+            sendJson(ex, 200, GSON.toJson(historyManager.playtimeSeriesJson(uuid, limit)));
+            return;
+        }
+
+        JsonObject activity = historyManager.activityJson(uuid);
+        if (activity == null) {
+            sendText(ex, 404, "Activity not found");
+            return;
+        }
+        sendJson(ex, 200, GSON.toJson(activity));
+    }
+
+    private void handleActivityTop(HttpExchange ex) throws IOException {
+        String window =
+                Optional.ofNullable(getParam(ex, "window")).orElse("day").toLowerCase(Locale.ROOT);
+        long now = System.currentTimeMillis();
+        long since =
+                switch (window) {
+                    case "week", "7d" -> now - 7L * 24 * 60 * 60 * 1000;
+                    case "day", "24h" -> now - 24L * 60 * 60 * 1000;
+                    default -> {
+                        sendText(ex, 400, "Invalid window");
+                        yield -1L;
+                    }
+                };
+        if (since < 0) return;
+
+        int limit = resolveIntParam(ex, "limit", settings.maxTopResults());
+        if (limit <= 0) limit = settings.maxTopResults();
+        limit = Math.min(limit, settings.maxTopResults());
+        sendJson(ex, 200, GSON.toJson(historyManager.topActivityJson(since, limit)));
+    }
+
+    private void handleActivityHeatmap(HttpExchange ex, String[] parts) throws IOException {
+        if (parts.length == 1) {
+            sendJson(ex, 200, GSON.toJson(historyManager.globalHeatmapJson()));
+            return;
+        }
+
+        UUID uuid = parseUuid(parts[1]);
+        if (uuid == null) {
+            sendText(ex, 400, "Invalid UUID");
+            return;
+        }
+        JsonObject activity = historyManager.activityJson(uuid);
+        if (activity == null) {
+            sendText(ex, 404, "Activity not found");
+            return;
+        }
+        JsonObject out = new JsonObject();
+        out.addProperty("uuid", uuid.toString());
+        out.add("daily_playtime_ticks", activity.getAsJsonObject("daily_playtime_ticks"));
+        out.add("heatmap_ticks", activity.getAsJsonObject("heatmap_ticks"));
+        sendJson(ex, 200, GSON.toJson(out));
+    }
+
+    // =========================================================================
     // GET /moss/top/<stat_key>[?section=<s>&limit=N]
     // GET /moss/top/<section>/<stat_key>[?limit=N]
     // =========================================================================
@@ -346,6 +445,7 @@ public class WebServer {
 
         int limit = resolveIntParam(ex, "limit", settings.maxTopResults());
         if (limit <= 0) limit = settings.maxTopResults();
+        limit = Math.min(limit, settings.maxTopResults());
         int max = Math.min(limit, entries.size());
 
         Set<UUID> online = statsManager.getOnlinePlayerIdSet();
@@ -437,6 +537,8 @@ public class WebServer {
         o.addProperty("name", statsManager.getPlayerName(uuid));
         o.addProperty("online", online);
         if (includeStats) o.add("stats", statsManager.getFullStats(uuid));
+        JsonObject activity = historyManager.activitySummaryJson(uuid);
+        if (activity != null) o.add("activity", activity);
         return o;
     }
 
@@ -487,6 +589,14 @@ public class WebServer {
             return Math.max(0, Integer.parseInt(val));
         } catch (NumberFormatException e) {
             return defaultValue;
+        }
+    }
+
+    private UUID parseUuid(String raw) {
+        try {
+            return UUID.fromString(URLDecoder.decode(raw, StandardCharsets.UTF_8));
+        } catch (Exception e) {
+            return null;
         }
     }
 

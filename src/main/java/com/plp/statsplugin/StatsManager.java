@@ -17,6 +17,7 @@ public class StatsManager implements Listener {
 
     private final StatsPlugin plugin;
     private final Logger log;
+    private final StatsHistoryManager historyManager;
 
     /** uuid → полный JSON со статистикой */
     private final ConcurrentMap<UUID, JsonObject> statsCache = new ConcurrentHashMap<>();
@@ -35,6 +36,7 @@ public class StatsManager implements Listener {
     public StatsManager(StatsPlugin plugin) {
         this.plugin = plugin;
         this.log = plugin.getLogger();
+        this.historyManager = plugin.getHistoryManager();
     }
 
     // =========================================================================
@@ -60,7 +62,9 @@ public class StatsManager implements Listener {
             if (p == null || p.getUniqueId() == null) continue;
             uuids.add(p.getUniqueId());
             cacheName(p.getUniqueId(), p.getName());
+            historyManager.recordOfflineMetadata(p.getUniqueId(), p.getName(), p.getLastSeen());
         }
+        historyManager.flush();
 
         log.info("Предзагрузка статистики: " + uuids.size() + " игроков...");
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
@@ -101,6 +105,7 @@ public class StatsManager implements Listener {
         Player p = e.getPlayer();
         onlineSet.add(p.getUniqueId());
         cacheName(p.getUniqueId(), p.getName());
+        historyManager.recordJoin(p.getUniqueId(), p.getName());
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> reloadOne(p.getUniqueId()));
     }
 
@@ -108,6 +113,7 @@ public class StatsManager implements Listener {
     public void onQuit(PlayerQuitEvent e) {
         Player p = e.getPlayer();
         onlineSet.remove(p.getUniqueId());
+        historyManager.recordQuit(p.getUniqueId(), p.getName());
         // Финальное обновление кэша после выхода
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> reloadOne(p.getUniqueId()));
     }
@@ -160,6 +166,8 @@ public class StatsManager implements Listener {
         JsonObject stats = StatsUtil.readStats(uuid);
         if (stats != null) {
             statsCache.put(uuid, stats);
+            historyManager.recordSnapshot(uuid, getPlayerName(uuid), stats, onlineSet.contains(uuid));
+            historyManager.flush();
         } else {
             statsCache.remove(uuid);
         }
@@ -173,11 +181,13 @@ public class StatsManager implements Listener {
             JsonObject stats = StatsUtil.readStats(uuid);
             if (stats != null) {
                 statsCache.put(uuid, stats);
+                historyManager.recordSnapshot(uuid, getPlayerName(uuid), stats, onlineSet.contains(uuid));
                 loaded++;
             } else {
                 statsCache.remove(uuid);
             }
         }
+        historyManager.flush();
 
         if (plugin.isSyncUpdateLoggingEnabled()) {
             long elapsed = System.currentTimeMillis() - start;

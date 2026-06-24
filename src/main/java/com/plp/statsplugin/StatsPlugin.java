@@ -16,6 +16,7 @@ import org.bukkit.scheduler.BukkitTask;
 public class StatsPlugin extends JavaPlugin {
 
     private StatsManager statsManager;
+    private StatsHistoryManager historyManager;
     private WebServer webServer;
     private BukkitTask autoUpdateTask;
     private int webBoundPort = -1;
@@ -30,6 +31,7 @@ public class StatsPlugin extends JavaPlugin {
         StatsUtil.setLogger(getLogger());
         StatsUtil.setStatsFolder(resolveStatsFolder());
 
+        historyManager = new StatsHistoryManager(getDataFolder(), getLogger(), getHistoryMaxPointsPerPlayer());
         statsManager = new StatsManager(this);
         Bukkit.getPluginManager().registerEvents(statsManager, this);
 
@@ -377,7 +379,7 @@ public class StatsPlugin extends JavaPlugin {
         WebServer.Settings settings = new WebServer.Settings(
                 bindAddress, maxPlayers, maxTop, corsEnabled, corsOrigin, rlEnabled, rlRequests, rlWindowMs);
 
-        webServer = new WebServer(statsManager, getLogger(), settings);
+        webServer = new WebServer(statsManager, historyManager, getLogger(), settings);
 
         // Генерируем fallback-порты: port+1, port+2, ... port+9
         int[] fallbacks = new int[9];
@@ -402,6 +404,7 @@ public class StatsPlugin extends JavaPlugin {
 
     private void reloadRuntimeConfig() {
         reloadConfig();
+        historyManager.updateMaxPointsPerPlayer(getHistoryMaxPointsPerPlayer());
         StatsUtil.setStatsFolder(resolveStatsFolder());
         restartStatsAutoUpdate();
         restartWebServer();
@@ -483,6 +486,14 @@ public class StatsPlugin extends JavaPlugin {
 
     int getStatsUpdateIntervalSeconds() {
         return getConfigInt("stats.update-interval-seconds", "update-interval-seconds", 60);
+    }
+
+    public StatsHistoryManager getHistoryManager() {
+        return historyManager;
+    }
+
+    private int getHistoryMaxPointsPerPlayer() {
+        return Math.max(1, getConfigInt("history.max-points-per-player", null, 2880));
     }
 
     boolean isSyncUpdateLoggingEnabled() {
