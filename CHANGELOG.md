@@ -1,5 +1,14 @@
 # Changelog
 
+## 3.0.0
+
+### Changed
+
+- Upgraded the plugin to Paper 26.2 and raised the build/runtime requirement to Java 25.
+- Updated the release workflow and documentation to match the Paper 26.2 target.
+- Added startup-phase logging to help diagnose plugin load failures.
+- Restored the Minecraft `api-version` in `plugin.yml` so the generated jar no longer advertises an invalid `26.2` value.
+
 ## 2.1.3
 
 ### Added

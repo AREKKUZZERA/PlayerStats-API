@@ -26,22 +26,37 @@ public class StatsPlugin extends JavaPlugin {
 
     @Override
     public void onEnable() {
-        saveDefaultConfig();
+        try {
+            getLogger().info("Starting PlayerStatsAPI v" + getPluginMeta().getVersion()
+                    + " on Java " + System.getProperty("java.version")
+                    + ", server " + Bukkit.getVersion() + ".");
 
-        StatsUtil.setLogger(getLogger());
-        StatsUtil.setStatsFolder(resolveStatsFolder());
+            getLogger().info("Startup step: loading default config.");
+            saveDefaultConfig();
 
-        historyManager = new StatsHistoryManager(getDataFolder(), getLogger(), getHistoryMaxPointsPerPlayer());
-        statsManager = new StatsManager(this);
-        Bukkit.getPluginManager().registerEvents(statsManager, this);
+            getLogger().info("Startup step: wiring shared stats utilities.");
+            StatsUtil.setLogger(getLogger());
+            StatsUtil.setStatsFolder(resolveStatsFolder());
 
-        statsManager.preloadAllStatsAsync();
+            getLogger().info("Startup step: initializing history and stats managers.");
+            historyManager = new StatsHistoryManager(getDataFolder(), getLogger(), getHistoryMaxPointsPerPlayer());
+            statsManager = new StatsManager(this);
+            Bukkit.getPluginManager().registerEvents(statsManager, this);
 
-        restartStatsAutoUpdate();
+            getLogger().info("Startup step: preloading player stats.");
+            statsManager.preloadAllStatsAsync();
 
-        restartWebServer();
+            getLogger().info("Startup step: scheduling periodic refresh.");
+            restartStatsAutoUpdate();
 
-        getLogger().info("PlayerStatsAPI v" + getPluginMeta().getVersion() + " включён.");
+            getLogger().info("Startup step: starting web server.");
+            restartWebServer();
+
+            getLogger().info("PlayerStatsAPI v" + getPluginMeta().getVersion() + " enabled successfully.");
+        } catch (Exception e) {
+            getLogger().log(Level.SEVERE, "PlayerStatsAPI failed during startup.", e);
+            throw new IllegalStateException("PlayerStatsAPI startup failed", e);
+        }
     }
 
     @Override

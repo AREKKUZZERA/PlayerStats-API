@@ -1,7 +1,7 @@
 name: PlayerStatsAPI
 version: ${project.version}
 main: com.plp.statsplugin.StatsPlugin
-api-version: '1.21'
+api-version: '${minecraft.api.version}'
 description: Vanilla statistics web API and command helper.
 
 commands:

@@ -6,7 +6,7 @@
 
     <groupId>com.plp</groupId>
     <artifactId>PlayerStats-API</artifactId>
-    <version>2.1.3</version>
+    <version>3.0.0</version>
     <name>PlayerStatsAPI</name>
 
     <properties>
@@ -18,7 +18,7 @@
         <mockito.version>5.18.0</mockito.version>
 
         <minecraft.api.version>1.21</minecraft.api.version>
-        <paper.api.version>1.21.11-R0.1-SNAPSHOT</paper.api.version>
+        <paper.api.version>26.2.build.47-alpha</paper.api.version>
     </properties>
 
     <repositories>

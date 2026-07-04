@@ -5,7 +5,7 @@ on:
     branches:
       - main
     tags:
-      - 'v*'
+      - "v*"
   pull_request:
     branches:
       - main
@@ -27,7 +27,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '21'
+          java-version: "25"
           cache: maven
 
       - name: Build & test
@@ -55,7 +55,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '21'
+          java-version: "25"
           cache: maven
 
       - name: Build jar
@@ -74,18 +74,7 @@ jobs:
           version-type: release
           files: target/PlayerStats-API-${{ env.PROJECT_VERSION }}.jar
           game-versions: |
-            1.21
-            1.21.1
-            1.21.2
-            1.21.3
-            1.21.4
-            1.21.5
-            1.21.6
-            1.21.7
-            1.21.8
-            1.21.9
-            1.21.10
-            1.21.11
+            26.2
           loaders: |
             paper
             purpur

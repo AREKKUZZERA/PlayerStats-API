@@ -8,8 +8,8 @@ A lightweight **Paper/Purpur plugin** that exposes Minecraft vanilla player stat
 
 | Requirement | Version |
 |---|---|
-| Java | 21+ |
-| Paper / Purpur | 1.21 – 1.21.11 |
+| Java | 25+ |
+| Paper / Purpur | 26.2 |
 
 ---
 
@@ -421,7 +421,7 @@ Response shape is identical to `/moss/activity/heatmap`, with an additional `uui
 git clone https://github.com/your-org/PlayerStats-API.git
 cd PlayerStats-API
 mvn clean package -DskipTests
-# Output: target/PlayerStats-API-2.1.3.jar
+# Output: target/PlayerStats-API-3.0.0.jar
 ```
 
 The normal CI build runs:
@@ -466,15 +466,15 @@ To check formatting directly, run `mvn spotless:check`.
 #### Releasing
 
 ```bash
-git tag v2.1.3
-git push origin v2.1.3
+git tag v3.0.0
+git push origin v3.0.0
 ```
 
 The workflow (`build & publish`) will trigger automatically:
 1. Builds the jar and runs tests.
 2. Publishes to Modrinth with the game versions and loaders declared in `.github/workflows/maven.yml`.
 
-Current workflow metadata publishes for Paper/Purpur on Minecraft `1.21` through `1.21.11`.
+Current workflow metadata publishes for Paper/Purpur on `26.2`.
 
 The publish job uses `CHANGELOG.md` as the Modrinth changelog file. Add or update that file before pushing a release tag.
 
