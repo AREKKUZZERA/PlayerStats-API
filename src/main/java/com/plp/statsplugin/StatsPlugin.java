@@ -2,12 +2,17 @@ package com.plp.statsplugin;
 
 import com.google.gson.JsonObject;
 import java.io.File;
+import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.*;
 import java.util.logging.Level;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
+import org.bukkit.configuration.InvalidConfigurationException;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -33,6 +38,7 @@ public class StatsPlugin extends JavaPlugin {
 
             getLogger().info("Startup step: loading default config.");
             saveDefaultConfig();
+            validateConfigFile();
 
             getLogger().info("Startup step: wiring shared stats utilities.");
             StatsUtil.setLogger(getLogger());
@@ -528,6 +534,44 @@ public class StatsPlugin extends JavaPlugin {
 
     private int getMaxTopLimit() {
         return Math.max(1, getConfigInt("commands.max-top-limit", null, 50));
+    }
+
+    private void validateConfigFile() {
+        File configFile = new File(getDataFolder(), "config.yml");
+        if (!configFile.isFile()) {
+            return;
+        }
+
+        YamlConfiguration yaml = new YamlConfiguration();
+        try {
+            yaml.load(configFile);
+        } catch (IOException e) {
+            getLogger().log(Level.SEVERE, "Failed to read " + configFile.getAbsolutePath() + ".", e);
+        } catch (InvalidConfigurationException e) {
+            getLogger().log(
+                    Level.SEVERE,
+                    "Invalid YAML in " + configFile.getAbsolutePath()
+                            + ". PlayerStatsAPI may fall back to defaults for unreadable values.",
+                    e);
+
+            String hint = detectConfigHint(configFile);
+            if (hint != null) {
+                getLogger().severe(hint);
+            }
+        }
+    }
+
+    private String detectConfigHint(File configFile) {
+        try {
+            for (String line : Files.readAllLines(configFile.toPath(), StandardCharsets.UTF_8)) {
+                if (line.startsWith("folder:")) {
+                    return "Detected a top-level 'folder:' key in config.yml. It must be indented under 'stats:' as 'stats.folder'.";
+                }
+            }
+        } catch (IOException e) {
+            getLogger().log(Level.FINE, "Failed to inspect config.yml for common mistakes.", e);
+        }
+        return null;
     }
 
     private String getConfigString(String primaryPath, String legacyPath, String defaultValue) {
