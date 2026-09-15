@@ -8,8 +8,8 @@ A lightweight **Paper/Purpur plugin** that exposes Minecraft vanilla player stat
 
 | Requirement | Version |
 |---|---|
-| Java | 21+ |
-| Paper / Purpur | 1.21 – 1.21.11 |
+| Java | 25+ |
+| Paper / Purpur | 26.2 |
 
 ---
 
@@ -466,15 +466,15 @@ To check formatting directly, run `mvn spotless:check`.
 #### Releasing
 
 ```bash
-git tag v2.1.3
-git push origin v2.1.3
+git tag v2.2.0
+git push origin v2.2.0
 ```
 
 The workflow (`build & publish`) will trigger automatically:
 1. Builds the jar and runs tests.
 2. Publishes to Modrinth with the game versions and loaders declared in `.github/workflows/maven.yml`.
 
-Current workflow metadata publishes for Paper/Purpur on Minecraft `1.21` through `1.21.11`.
+Current workflow metadata publishes for Paper/Purpur on Minecraft `26.2`.
 
 The publish job uses `CHANGELOG.md` as the Modrinth changelog file. Add or update that file before pushing a release tag.
 

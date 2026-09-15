@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.2.0
+
+### Changed
+
+- Updated the plugin to Paper/Purpur Minecraft 26.2.
+- Updated the build and CI toolchain to Java 25.
+
 ## 2.1.3
 
 ### Added
